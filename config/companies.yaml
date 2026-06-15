@@ -1,0 +1,22 @@
+companies:
+  - name: Datadog
+    source_type: greenhouse
+    source_url: https://boards-api.greenhouse.io/v1/boards/datadog/jobs
+    collection_status: enabled
+    compliance_status: api_preferred
+    max_requests_per_run: 1
+
+  - name: Ramp
+    source_type: greenhouse
+    source_url: https://boards-api.greenhouse.io/v1/boards/ramp/jobs
+    collection_status: disabled
+    compliance_status: manual_review_required
+    max_requests_per_run: 1
+    disabled_reason: "Initial test returned HTTP 404. Source URL needs validation."
+
+  - name: Netflix
+    source_type: greenhouse
+    source_url: https://boards-api.greenhouse.io/v1/boards/netflix/jobs
+    collection_status: enabled
+    compliance_status: api_preferred
+    max_requests_per_run: 1
