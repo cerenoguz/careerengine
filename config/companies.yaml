@@ -6,6 +6,13 @@ companies:
     compliance_status: api_preferred
     max_requests_per_run: 1
 
+  - name: PostHog
+    source_type: ashby
+    source_url: https://api.ashbyhq.com/posting-api/job-board/posthog
+    collection_status: enabled
+    compliance_status: api_preferred
+    max_requests_per_run: 1
+
   - name: Ramp
     source_type: greenhouse
     source_url: https://boards-api.greenhouse.io/v1/boards/ramp/jobs
@@ -17,6 +24,6 @@ companies:
   - name: Netflix
     source_type: greenhouse
     source_url: https://boards-api.greenhouse.io/v1/boards/netflix/jobs
-    collection_status: enabled
+    collection_status: disabled
     compliance_status: api_preferred
     max_requests_per_run: 1
