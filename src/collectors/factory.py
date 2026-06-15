@@ -1,6 +1,7 @@
 from typing import Any
 from src.collectors.ashby import collect_ashby_jobs
 from src.collectors.greenhouse import collect_greenhouse_jobs
+from src.collectors.lever import collect_lever_jobs
 from src.models import Job, SourceHealth
 
 
@@ -42,6 +43,8 @@ def collect_jobs_for_company(company_config: dict[str, Any]) -> tuple[list[Job],
         return collect_greenhouse_jobs(company=company, source_url=source_url)
     if source_type == "ashby":
         return collect_ashby_jobs(company=company, source_url=source_url)
+    if source_type == "lever":
+        return collect_lever_jobs(company=company, source_url=source_url)
 
     return [], SourceHealth(
         company=company,

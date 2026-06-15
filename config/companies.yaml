@@ -13,6 +13,34 @@ companies:
     compliance_status: api_preferred
     max_requests_per_run: 1
 
+  - name: Plaid
+    source_type: lever
+    source_url: https://api.lever.co/v0/postings/plaid?mode=json
+    collection_status: disabled
+    compliance_status: api_preferred
+    max_requests_per_run: 1
+
+  - name: Linear
+    source_type: ashby
+    source_url: https://api.ashbyhq.com/posting-api/job-board/Linear
+    collection_status: enabled
+    compliance_status: api_preferred
+    max_requests_per_run: 1
+
+  - name: Cohere
+    source_type: ashby
+    source_url: https://api.ashbyhq.com/posting-api/job-board/cohere
+    collection_status: enabled
+    compliance_status: api_preferred
+    max_requests_per_run: 1
+
+  - name: Notion
+    source_type: ashby
+    source_url: https://api.ashbyhq.com/posting-api/job-board/notion
+    collection_status: enabled
+    compliance_status: api_preferred
+    max_requests_per_run: 1
+    
   - name: Ramp
     source_type: greenhouse
     source_url: https://boards-api.greenhouse.io/v1/boards/ramp/jobs
