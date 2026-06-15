@@ -55,6 +55,58 @@ companies:
     compliance_status: api_preferred
     max_requests_per_run: 1
 
+  - name: Figma
+    source_type: greenhouse
+    source_url: https://boards-api.greenhouse.io/v1/boards/figma/jobs
+    collection_status: enabled
+    compliance_status: api_preferred
+    max_requests_per_run: 1
+
+  - name: Anthropic
+    source_type: greenhouse
+    source_url: https://boards-api.greenhouse.io/v1/boards/anthropic/jobs
+    collection_status: enabled
+    compliance_status: api_preferred
+    max_requests_per_run: 1
+
+  - name: Perplexity
+    source_type: ashby
+    source_url: https://api.ashbyhq.com/posting-api/job-board/perplexity
+    collection_status: enabled
+    compliance_status: api_preferred
+    max_requests_per_run: 1
+
+  - name: OpenAI
+    source_type: ashby
+    source_url: https://api.ashbyhq.com/posting-api/job-board/openai
+    collection_status: enabled
+    compliance_status: api_preferred
+    max_requests_per_run: 1
+
+  - name: Hugging Face
+    source_type: workable
+    source_url: https://apply.workable.com/huggingface/
+    collection_status: disabled
+    compliance_status: manual_review_required
+    max_requests_per_run: 1
+    disabled_reason: "Uses Workable. Need a Workable collector before enabling."
+
+  - name: Deel
+    source_type: custom_careers_page
+    source_url: https://jobs.deel.com/deel
+    collection_status: disabled
+    compliance_status: manual_review_required
+    max_requests_per_run: 1
+    disabled_reason: "Custom careers page. Need source validation or custom collector before enabling."
+
+  - name: Stripe
+    source_type: custom_careers_page
+    source_url: https://stripe.com/jobs/search
+    collection_status: disabled
+    compliance_status: manual_review_required
+    max_requests_per_run: 1
+    disabled_reason: "Custom careers page. Need source validation or custom collector before enabling."
+
   - name: Ramp
     source_type: greenhouse
     source_url: https://boards-api.greenhouse.io/v1/boards/ramp/jobs
