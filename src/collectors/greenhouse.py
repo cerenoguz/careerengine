@@ -22,7 +22,12 @@ def collect_greenhouse_jobs(company: str, source_url: str) -> tuple[list[Job], S
     }
 
     try:
-        response = requests.get(source_url, headers=headers, timeout=20)
+        response = requests.get(
+            source_url,
+            headers=headers,
+            params={"content": "true"},
+            timeout=20,
+        )
 
         if response.status_code == 403:
             return [], SourceHealth(

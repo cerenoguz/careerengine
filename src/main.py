@@ -8,9 +8,6 @@ from src.collectors.factory import collect_jobs_for_company
 from src.models import Job, SourceHealth
 from src.ranking.description_similarity import compute_description_similarity
 from src.ranking.opt_signals import classify_eligibility
-from src.reporting.email_report import build_daily_email_report
-from src.reporting.report_writer import save_daily_report
-from src.reporting.email_sender import send_email_report
 from src.ranking.rule_score import (
     classify_cs_relevance,
     has_unrealistic_seniority,
@@ -19,6 +16,9 @@ from src.ranking.rule_score import (
     is_new_grad,
     score_job,
 )
+from src.reporting.email_report import build_daily_email_report
+from src.reporting.email_sender import send_email_report
+from src.reporting.report_writer import save_daily_report
 from src.storage.database import filter_new_jobs, initialize_database, save_seen_jobs
 
 
@@ -155,14 +155,17 @@ def is_recommendable_job(job: Job) -> bool:
     Decide whether a job should appear in the final recommendation list.
 
     A job must:
-    - not be in an excluded role category
+    - not be in an excluded role category based on title
     - have a positive score
     - not be likely incompatible with OPT/work authorization
     - be clearly or defensibly related to CS/Math based on title + description
     - be U.S.-based or U.S.-remote
     - be realistic for a new-grad / early-career candidate
     """
-    if is_excluded_role(job.title, job.description):
+    # Excluded role category should be title-based.
+    # The description may mention sales/marketing/support as partner teams,
+    # but that does not make the role itself a sales/marketing/support job.
+    if is_excluded_role(job.title, ""):
         return False
 
     if job.score <= 0:
@@ -236,8 +239,11 @@ def print_summary(
     recommended_jobs: list[Job],
     new_recommended_jobs: list[Job],
 ) -> None:
+    # Count excluded roles by title only.
+    # This avoids excluding valid engineering jobs just because their descriptions
+    # mention sales, marketing, support, recruiting, etc.
     excluded_count = sum(
-        1 for job in all_jobs if is_excluded_role(job.title, job.description)
+        1 for job in all_jobs if is_excluded_role(job.title, "")
     )
 
     cs_relevant_count = sum(
