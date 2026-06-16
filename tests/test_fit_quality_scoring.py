@@ -1,4 +1,4 @@
-from src.ranking.rule_score import has_mid_level_title, score_job
+from src.ranking.rule_score import has_mid_level_title, has_unrealistic_seniority, is_new_grad, score_job
 
 
 DESCRIPTION = """
@@ -68,3 +68,21 @@ def test_new_grad_software_engineer_gets_explicit_role_boost():
     assert score > 0
     assert "Role match: new grad software engineer (+14)" in reasons
     assert "New grad / early-career opportunity (+12)" in reasons
+
+
+def test_principal_software_engineer_i_is_not_new_grad():
+    title = "Principal Software Engineer I - Snowhouse Foundation"
+
+    assert is_new_grad(title, DESCRIPTION) is False
+    assert has_unrealistic_seniority(title, DESCRIPTION) is True
+
+
+def test_principal_software_engineer_i_does_not_get_software_engineer_i_boost():
+    _, reasons = score_job(
+        "Principal Software Engineer I - Snowhouse Foundation",
+        DESCRIPTION,
+        "unclear",
+    )
+
+    assert "Role match: software engineer i (+12)" not in reasons
+    assert "New grad / early-career opportunity (+12)" not in reasons

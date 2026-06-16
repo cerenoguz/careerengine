@@ -28,6 +28,28 @@ NEW_GRAD_PATTERNS = [
     r"\brotational program\b",
 ]
 
+SENIOR_TITLE_BLOCKING_PATTERNS = [
+    r"\bsenior\b",
+    r"\bstaff\b",
+    r"\bprincipal\b",
+    r"\blead\b",
+    r"\bmanager\b",
+    r"\bdirector\b",
+    r"\bdistinguished\b",
+    r"\barchitect\b",
+    r"\bvp\b",
+    r"\bhead of\b",
+]
+
+
+def has_senior_title_blocker(title: str) -> bool:
+    normalized_title = title.lower()
+    return any(
+        re.search(pattern, normalized_title)
+        for pattern in SENIOR_TITLE_BLOCKING_PATTERNS
+    )
+
+
 
 # -----------------------------
 # Roles to remove entirely
@@ -288,10 +310,13 @@ def is_new_grad(title: str, description: str) -> bool:
     """
     Classify new-grad / entry-level status from the role title only.
 
-    This prevents description bleed, where a Software Engineer II role is
-    incorrectly marked new-grad because the description references a separate
-    new-grad posting.
+    Senior-title blockers prevent titles such as Principal Software Engineer I
+    from being incorrectly classified as new-grad just because they contain
+    Software Engineer I.
     """
+    if has_senior_title_blocker(title):
+        return False
+
     return matches_any_pattern(title, NEW_GRAD_PATTERNS)
 
 
@@ -467,6 +492,12 @@ def score_job(title: str, description: str, eligibility_status: str) -> tuple[fl
         reasons.append(reason)
 
     for keyword, points in ROLE_KEYWORDS.items():
+        if keyword == "software engineer i":
+            if contains_phrase(title, keyword) and not has_senior_title_blocker(title):
+                score += points
+                reasons.append(f"Role match: {keyword} (+{points})")
+            continue
+
         if contains_phrase(text, keyword):
             score += points
             reasons.append(f"Role match: {keyword} (+{points})")
