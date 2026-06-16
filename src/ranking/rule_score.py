@@ -262,13 +262,25 @@ def matches_any_pattern(text: str, patterns: list[str]) -> bool:
 # -----------------------------
 
 def is_internship(title: str, description: str) -> bool:
-    text = f"{title} {description}"
-    return matches_any_pattern(text, INTERNSHIP_PATTERNS)
+    """
+    Classify internship status from the role title only.
+
+    Job descriptions often mention separate internship/new-grad programs,
+    university recruiting, or eligibility language. That should not make a
+    normal full-time role appear as an internship.
+    """
+    return matches_any_pattern(title, INTERNSHIP_PATTERNS)
 
 
 def is_new_grad(title: str, description: str) -> bool:
-    text = f"{title} {description}"
-    return matches_any_pattern(text, NEW_GRAD_PATTERNS)
+    """
+    Classify new-grad / entry-level status from the role title only.
+
+    This prevents description bleed, where a Software Engineer II role is
+    incorrectly marked new-grad because the description references a separate
+    new-grad posting.
+    """
+    return matches_any_pattern(title, NEW_GRAD_PATTERNS)
 
 
 def is_excluded_role(title: str, description: str) -> bool:
