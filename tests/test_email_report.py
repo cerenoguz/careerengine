@@ -1,71 +1,87 @@
+from datetime import date
+
 from src.models import Job, SourceHealth
-from src.reporting.email_report import build_daily_email_report
+from src.reporting.email_report import build_daily_email_report, format_report_date
 
 
-def test_email_report_includes_summary_and_source_health() -> None:
-    health_records = [
-        SourceHealth(
-            company="Test Company",
-            source="greenhouse",
-            status="success",
-            http_code=200,
-            jobs_found=10,
-            reason=None,
-        )
-    ]
-
-    email_body = build_daily_email_report(
-        health_records=health_records,
-        total_jobs_collected=10,
-        recommended_jobs_before_deduplication=0,
-        new_recommended_jobs=[],
-    )
-
-    assert "CareerEngine Daily Job Report" in email_body
-    assert "Companies checked: 1" in email_body
-    assert "Total jobs collected: 10" in email_body
-    assert "Successful sources: 1" in email_body
-    assert "1 successful sources omitted from detailed list." in email_body
-    assert "Test Company: success" not in email_body
-    assert "No new recommended jobs found" in email_body
-
-
-def test_email_report_includes_recommended_job_details() -> None:
-    job = Job(
-        id="job-1",
-        company="Test Company",
-        title="Software Engineer - Early Career",
+def make_job(index: int = 1) -> Job:
+    return Job(
+        id=str(index),
+        company=f"Company {index}",
+        title=f"Software Engineer {index}",
         location="Boston, MA",
-        description="Build backend services using Python, SQL, REST APIs, and databases.",
-        url="https://example.com/job-1",
+        description="Python backend software engineering role.",
+        url=f"https://example.com/jobs/{index}",
         date_posted=None,
         source="test",
-        score=75.5,
-        eligibility_status="unclear",
-        description_similarity=0.42,
-        is_internship=False,
-        is_new_grad=True,
-        why_matched=["Target role: software engineer", "Strong backend skill match"],
+        eligibility_status="likely_compatible",
+        description_similarity=0.05,
+        score=90.0,
+        why_matched=["Strong CS/Math degree relevance (+15)", "Role match"],
     )
 
-    email_body = build_daily_email_report(
+
+def test_format_report_date():
+    assert format_report_date(date(2026, 6, 16)) == "Tuesday - June 16, 2026"
+
+
+def test_daily_email_report_uses_formal_company_style_without_separator_lines():
+    report = build_daily_email_report(
         health_records=[],
         total_jobs_collected=1,
         recommended_jobs_before_deduplication=1,
-        new_recommended_jobs=[job],
+        new_recommended_jobs=[make_job()],
+        duplicate_recommendations_removed=0,
+        recommendations_hidden_by_email_cap=0,
     )
 
-    assert "Software Engineer - Early Career" in email_body
-    assert "Boston, MA" in email_body
-    assert "Score: 75.50" in email_body
-    assert "Description similarity: 0.420" in email_body
-    assert "https://example.com/job-1" in email_body
-    assert "Target role: software engineer" in email_body
-from src.models import SourceHealth
-from src.reporting.email_report import build_daily_email_report
+    assert report.startswith("Dear Ceren,")
+    assert "Here is your CareerEngine Daily Opportunity Report for" in report
+    assert "CareerEngine reviewed your configured company sources" in report
+    assert "Recommended opportunities are listed below in ranked order." in report
+    assert "Best of luck,\nCareerEngine" in report
+    assert "New Recommended Jobs" in report
+
+    assert "-------" not in report
+    assert "====" not in report
 
 
-def test_daily_email_report_includes_source_status_counts():
+def test_daily_email_report_includes_recommendation_details():
+    report = build_daily_email_report(
+        health_records=[],
+        total_jobs_collected=1,
+        recommended_jobs_before_deduplication=1,
+        new_recommended_jobs=[make_job()],
+        duplicate_recommendations_removed=0,
+        recommendations_hidden_by_email_cap=0,
+    )
+
+    assert "1. Company 1 — Software Engineer 1" in report
+    assert "Location: Boston, MA" in report
+    assert "Match strength: Excellent match" in report
+    assert "Score: 90.00 points" in report
+    assert "Description similarity: 0.050" in report
+    assert "Eligibility: likely_compatible" in report
+    assert "URL: https://example.com/jobs/1" in report
+    assert "Why matched:" in report
+    assert "- Strong CS/Math degree relevance (+15)" in report
+
+
+def test_daily_email_report_handles_no_new_recommendations():
+    report = build_daily_email_report(
+        health_records=[],
+        total_jobs_collected=0,
+        recommended_jobs_before_deduplication=0,
+        new_recommended_jobs=[],
+        duplicate_recommendations_removed=0,
+        recommendations_hidden_by_email_cap=0,
+    )
+
+    assert "No new recommended jobs found with the current filters." in report
+    assert "Best of luck,\nCareerEngine" in report
+
+
+def test_daily_email_report_summarizes_source_health_section():
     report = build_daily_email_report(
         health_records=[
             SourceHealth(
@@ -74,6 +90,7 @@ def test_daily_email_report_includes_source_status_counts():
                 status="success",
                 http_code=200,
                 jobs_found=10,
+                reason=None,
             ),
             SourceHealth(
                 company="DisabledCo",
@@ -93,13 +110,18 @@ def test_daily_email_report_includes_source_status_counts():
             ),
         ],
         total_jobs_collected=10,
-        recommended_jobs_before_deduplication=2,
-        new_recommended_jobs=[],
+        recommended_jobs_before_deduplication=1,
+        new_recommended_jobs=[make_job()],
         duplicate_recommendations_removed=0,
         recommendations_hidden_by_email_cap=0,
     )
 
-    assert "Companies checked: 3" in report
-    assert "Successful sources: 1" in report
-    assert "Disabled sources: 1" in report
-    assert "Sources needing attention: 1" in report
+    assert "Source Health" in report
+    assert "1 successful sources omitted from detailed list." in report
+    assert "1 disabled sources listed below." in report
+    assert "1 sources need attention." in report
+    assert "Disabled Sources" in report
+    assert "- DisabledCo: Disabled for test." in report
+    assert "Sources Needing Attention" in report
+    assert "- BrokenCo: http_error (HTTP: 500, Jobs: 0)" in report
+    assert "WorkingCo: success" not in report

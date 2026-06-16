@@ -1,5 +1,20 @@
+from datetime import date
+
 from src.models import Job, SourceHealth
-from src.ranking.match_interpretation import get_description_similarity_label, get_match_strength_label
+from src.ranking.match_interpretation import (
+    get_description_similarity_label,
+    get_match_strength_label,
+)
+
+
+REPORT_RECIPIENT_NAME = "Ceren"
+
+
+def format_report_date(report_date: date | None = None) -> str:
+    if report_date is None:
+        report_date = date.today()
+
+    return report_date.strftime("%A - %B %-d, %Y")
 
 
 def build_daily_email_report(
@@ -26,14 +41,6 @@ def build_daily_email_report(
             recommended_jobs_before_deduplication - len(new_recommended_jobs)
         )
 
-    lines: list[str] = []
-
-    lines.append("CareerEngine Daily Job Report")
-    lines.append("=" * 29)
-    lines.append("")
-
-    lines.append("Summary")
-    lines.append("-------")
     successful_sources = sum(
         1 for record in health_records if record.status == "success"
     )
@@ -46,6 +53,33 @@ def build_daily_email_report(
         if record.status not in {"success", "disabled"}
     )
 
+    disabled_records = [
+        record for record in health_records if record.status == "disabled"
+    ]
+    attention_records = [
+        record
+        for record in health_records
+        if record.status not in {"success", "disabled"}
+    ]
+
+    lines: list[str] = []
+
+    lines.append(f"Dear {REPORT_RECIPIENT_NAME},")
+    lines.append("")
+    lines.append(
+        "Here is your CareerEngine Daily Opportunity Report for "
+        f"{format_report_date()}."
+    )
+    lines.append("")
+    lines.append(
+        "CareerEngine reviewed your configured company sources and evaluated "
+        "active roles against your background."
+    )
+    lines.append("")
+    lines.append("Recommended opportunities are listed below in ranked order.")
+    lines.append("")
+
+    lines.append("Summary")
     lines.append(f"Companies checked: {len(health_records)}")
     lines.append(f"Successful sources: {successful_sources}")
     lines.append(f"Disabled sources: {disabled_sources}")
@@ -68,52 +102,37 @@ def build_daily_email_report(
 
     lines.append(f"New recommended jobs: {len(new_recommended_jobs)}")
     lines.append("")
+
     lines.append("Score Guide")
-    lines.append("-----------")
     lines.append("70+ = excellent match")
     lines.append("55-69 = strong match")
     lines.append("45-54 = relevant / worth checking")
     lines.append("Below 45 = lower-priority match")
     lines.append("")
+
     lines.append("Description Similarity Guide")
-    lines.append("----------------------------")
     lines.append("0.120+ = strong wording overlap")
     lines.append("0.070-0.119 = moderate wording overlap")
     lines.append("0.040-0.069 = low wording overlap")
     lines.append("Below 0.040 = very low wording overlap")
     lines.append("")
 
-    lines.append("")
     lines.append("Source Health")
-    lines.append("-------------")
     lines.append(
         f"{successful_sources} successful sources omitted from detailed list."
     )
     lines.append(f"{disabled_sources} disabled sources listed below.")
     lines.append(f"{sources_needing_attention} sources need attention.")
-
-    disabled_records = [
-        record for record in health_records if record.status == "disabled"
-    ]
-    attention_records = [
-        record
-        for record in health_records
-        if record.status not in {"success", "disabled"}
-    ]
+    lines.append("")
 
     if disabled_records:
-        lines.append("")
         lines.append("Disabled Sources")
-        lines.append("----------------")
         for record in disabled_records:
-            lines.append(
-                f"- {record.company}: {record.reason or 'Disabled.'}"
-            )
+            lines.append(f"- {record.company}: {record.reason or 'Disabled.'}")
+        lines.append("")
 
     if attention_records:
-        lines.append("")
         lines.append("Sources Needing Attention")
-        lines.append("-------------------------")
         for record in attention_records:
             lines.append(
                 f"- {record.company}: {record.status} "
@@ -121,17 +140,20 @@ def build_daily_email_report(
             )
             if record.reason:
                 lines.append(f"  Reason: {record.reason}")
+        lines.append("")
 
+    lines.append("Best of luck,")
+    lines.append("CareerEngine")
     lines.append("")
+
     lines.append("New Recommended Jobs")
-    lines.append("--------------------")
+    lines.append("")
 
     if not new_recommended_jobs:
         lines.append("No new recommended jobs found with the current filters.")
         return "\n".join(lines)
 
     for index, job in enumerate(new_recommended_jobs, start=1):
-        lines.append("")
         lines.append(f"{index}. {job.company} — {job.title}")
         lines.append(f"Location: {job.location}")
         lines.append(f"Match strength: {get_match_strength_label(job.score)}")
@@ -150,4 +172,6 @@ def build_daily_email_report(
             for reason in job.why_matched[:5]:
                 lines.append(f"- {reason}")
 
-    return "\n".join(lines)
+        lines.append("")
+
+    return "\n".join(lines).rstrip()
