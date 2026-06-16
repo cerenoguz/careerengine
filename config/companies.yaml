@@ -1,123 +1,179 @@
 companies:
-  - name: Datadog
-    source_type: greenhouse
-    source_url: https://boards-api.greenhouse.io/v1/boards/datadog/jobs
-    collection_status: enabled
-    compliance_status: api_preferred
-    max_requests_per_run: 1
-
-  - name: PostHog
-    source_type: ashby
-    source_url: https://api.ashbyhq.com/posting-api/job-board/posthog
-    collection_status: enabled
-    compliance_status: api_preferred
-    max_requests_per_run: 1
-
-  - name: Plaid
-    source_type: lever
-    source_url: https://api.lever.co/v0/postings/plaid?mode=json
-    collection_status: disabled
-    compliance_status: api_preferred
-    max_requests_per_run: 1
-
-  - name: Linear
-    source_type: ashby
-    source_url: https://api.ashbyhq.com/posting-api/job-board/Linear
-    collection_status: enabled
-    compliance_status: api_preferred
-    max_requests_per_run: 1
-
-  - name: Cohere
-    source_type: ashby
-    source_url: https://api.ashbyhq.com/posting-api/job-board/cohere
-    collection_status: enabled
-    compliance_status: api_preferred
-    max_requests_per_run: 1
-
-  - name: Notion
-    source_type: ashby
-    source_url: https://api.ashbyhq.com/posting-api/job-board/notion
-    collection_status: enabled
-    compliance_status: api_preferred
-    max_requests_per_run: 1
-
-  - name: Vercel
-    source_type: greenhouse
-    source_url: https://boards-api.greenhouse.io/v1/boards/vercel/jobs
-    collection_status: enabled
-    compliance_status: api_preferred
-    max_requests_per_run: 1
-
-  - name: Cloudflare
-    source_type: greenhouse
-    source_url: https://boards-api.greenhouse.io/v1/boards/cloudflare/jobs
-    collection_status: enabled
-    compliance_status: api_preferred
-    max_requests_per_run: 1
-
-  - name: Figma
-    source_type: greenhouse
-    source_url: https://boards-api.greenhouse.io/v1/boards/figma/jobs
-    collection_status: enabled
-    compliance_status: api_preferred
-    max_requests_per_run: 1
-
-  - name: Anthropic
-    source_type: greenhouse
-    source_url: https://boards-api.greenhouse.io/v1/boards/anthropic/jobs
-    collection_status: enabled
-    compliance_status: api_preferred
-    max_requests_per_run: 1
-
-  - name: Perplexity
-    source_type: ashby
-    source_url: https://api.ashbyhq.com/posting-api/job-board/perplexity
-    collection_status: enabled
-    compliance_status: api_preferred
-    max_requests_per_run: 1
-
-  - name: OpenAI
-    source_type: ashby
-    source_url: https://api.ashbyhq.com/posting-api/job-board/openai
-    collection_status: enabled
-    compliance_status: api_preferred
-    max_requests_per_run: 1
-
-  - name: Hugging Face
-    source_type: workable
-    source_url: https://apply.workable.com/huggingface/
-    collection_status: disabled
-    compliance_status: manual_review_required
-    max_requests_per_run: 1
-    disabled_reason: "Uses Workable. Need a Workable collector before enabling."
-
-  - name: Deel
-    source_type: custom_careers_page
-    source_url: https://jobs.deel.com/deel
-    collection_status: disabled
-    compliance_status: manual_review_required
-    max_requests_per_run: 1
-    disabled_reason: "Custom careers page. Need source validation or custom collector before enabling."
-
-  - name: Stripe
-    source_type: custom_careers_page
-    source_url: https://stripe.com/jobs/search
-    collection_status: disabled
-    compliance_status: manual_review_required
-    max_requests_per_run: 1
-    disabled_reason: "Custom careers page. Need source validation or custom collector before enabling."
-
-  - name: Ramp
-    source_type: greenhouse
-    source_url: https://boards-api.greenhouse.io/v1/boards/ramp/jobs
-    collection_status: disabled
-    compliance_status: manual_review_required
-    max_requests_per_run: 1
-    disabled_reason: "Initial test returned HTTP 404. Source URL needs validation."
-
-  - name: Netflix
-    source_type: greenhouse
-    source_url: https://boards-api.greenhouse.io/v1/boards/netflix/jobs
-    collection_status: disabled
-    compliance_status: api_preferred
-    max_requests_per_run: 1
+- name: Datadog
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/datadog/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: PostHog
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/posthog
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Plaid
+  source_type: lever
+  source_url: https://api.lever.co/v0/postings/plaid?mode=json
+  collection_status: disabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Linear
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/Linear
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Cohere
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/cohere
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Notion
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/notion
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Vercel
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/vercel/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Cloudflare
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/cloudflare/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Figma
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/figma/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Anthropic
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/anthropic/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Perplexity
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/perplexity
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: OpenAI
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/openai
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Hugging Face
+  source_type: workable
+  source_url: https://apply.workable.com/huggingface/
+  collection_status: disabled
+  compliance_status: manual_review_required
+  max_requests_per_run: 1
+  disabled_reason: Uses Workable. Need a Workable collector before enabling.
+- name: Deel
+  source_type: custom_careers_page
+  source_url: https://jobs.deel.com/deel
+  collection_status: disabled
+  compliance_status: manual_review_required
+  max_requests_per_run: 1
+  disabled_reason: Custom careers page. Need source validation or custom collector
+    before enabling.
+- name: Stripe
+  source_type: custom_careers_page
+  source_url: https://stripe.com/jobs/search
+  collection_status: disabled
+  compliance_status: manual_review_required
+  max_requests_per_run: 1
+  disabled_reason: Custom careers page. Need source validation or custom collector
+    before enabling.
+- name: Ramp
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/ramp/jobs
+  collection_status: disabled
+  compliance_status: manual_review_required
+  max_requests_per_run: 1
+  disabled_reason: Initial test returned HTTP 404. Source URL needs validation.
+- name: Netflix
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/netflix/jobs
+  collection_status: disabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Sentra
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/sentra
+  notes: Ashby source added for new-grad and early-career software roles.
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: N1
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/n1
+  notes: Ashby source added for new-grad and early-career software roles.
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: PointOne
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/PointOne
+  notes: Ashby source added for new-grad and early-career software roles.
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Benchling
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/benchling
+  notes: Ashby source added for new-grad and early-career software roles.
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: 8VC
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/8vc
+  notes: Ashby source added for new-grad and early-career software roles.
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Meshy
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/meshy
+  notes: Ashby source added for new-grad and early-career software roles.
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Replit
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/replit
+  notes: Ashby source added for new-grad and early-career software roles.
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Continue
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/continue
+  notes: Ashby source added for new-grad and early-career software roles.
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Realm
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/realmalliance
+  notes: Ashby source added for new-grad and early-career software roles.
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+- name: Confido
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/confido
+  notes: Ashby source added for new-grad and early-career software roles.
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
