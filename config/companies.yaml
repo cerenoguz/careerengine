@@ -74,11 +74,10 @@ companies:
   max_requests_per_run: 1
 - name: Hugging Face
   source_type: workable
-  source_url: https://apply.workable.com/huggingface/
-  collection_status: disabled
-  compliance_status: manual_review_required
+  source_url: https://www.workable.com/api/accounts/huggingface?details=true
+  collection_status: enabled
+  compliance_status: api_preferred
   max_requests_per_run: 1
-  disabled_reason: Uses Workable. Need a Workable collector before enabling.
 - name: Deel
   source_type: custom_careers_page
   source_url: https://jobs.deel.com/deel
