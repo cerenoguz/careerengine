@@ -13,7 +13,7 @@ def get_match_strength_label(score: float) -> str:
     if score >= 45:
         return "Relevant / worth checking"
 
-    return "Weak / review manually"
+    return "Lower-priority match"
 
 
 def get_description_similarity_label(description_similarity: float) -> str:

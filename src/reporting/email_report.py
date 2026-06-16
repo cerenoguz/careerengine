@@ -55,7 +55,7 @@ def build_daily_email_report(
     lines.append("70+ = excellent match")
     lines.append("55-69 = strong match")
     lines.append("45-54 = relevant / worth checking")
-    lines.append("Below 45 = weak / review manually")
+    lines.append("Below 45 = lower-priority match")
     lines.append("")
     lines.append("Description Similarity Guide")
     lines.append("----------------------------")
