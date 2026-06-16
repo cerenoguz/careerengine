@@ -20,12 +20,13 @@ from src.ranking.rule_score import (
 from src.reporting.email_report import build_daily_email_report, format_subject_date
 from src.reporting.email_sender import send_email_report
 from src.reporting.report_writer import save_daily_report
+from src.reporting.unsent_report import save_unsent_recommendations_report
 from src.storage.database import filter_new_jobs, initialize_database, save_seen_jobs
 
 
 CONFIG_PATH = Path("config/companies.yaml")
 CANDIDATE_PROFILE_PATH = Path("config/candidate_profile.txt")
-DUPLICATE_REPORT_PATH = Path("reports/duplicate_recommendations.txt")
+UNSENT_RECOMMENDATIONS_REPORT_PATH = Path("reports/unsent_recommendations.txt")
 
 MAX_RECOMMENDATIONS = 25
 DESCRIPTION_SIMILARITY_WEIGHT = 30
@@ -529,16 +530,17 @@ def build_duplicate_jobs_report(duplicate_jobs: list[Job]) -> str:
     return "\n".join(lines)
 
 
-def save_duplicate_jobs_report(duplicate_jobs: list[Job]) -> Path:
-    """
-    Save duplicate recommended jobs to a TXT report.
-    """
-    DUPLICATE_REPORT_PATH.parent.mkdir(exist_ok=True)
+def save_unsent_report(
+    *,
+    duplicate_recommended_jobs: list[Job],
+    hidden_by_email_cap_jobs: list[Job],
+) -> Path:
+    return save_unsent_recommendations_report(
+        path=UNSENT_RECOMMENDATIONS_REPORT_PATH,
+        duplicate_recommendations=duplicate_recommended_jobs,
+        hidden_by_email_cap_recommendations=hidden_by_email_cap_jobs,
+    )
 
-    duplicate_report = build_duplicate_jobs_report(duplicate_jobs)
-    DUPLICATE_REPORT_PATH.write_text(duplicate_report + "\n", encoding="utf-8")
-
-    return DUPLICATE_REPORT_PATH
 
 def main() -> None:
     initialize_database()
@@ -571,6 +573,7 @@ def main() -> None:
     ]
 
     new_recommended_jobs = deduplicated_recommended_jobs[:MAX_RECOMMENDATIONS]
+    hidden_by_email_cap_jobs = deduplicated_recommended_jobs[MAX_RECOMMENDATIONS:]
 
     print_source_health(health_records)
     print_summary(
@@ -604,12 +607,15 @@ def main() -> None:
     print()
     print(f"Saved email report to: {report_path}")
 
-    duplicate_report_path = save_duplicate_jobs_report(duplicate_recommended_jobs)
+    unsent_report_path = save_unsent_report(
+        duplicate_recommended_jobs=duplicate_recommended_jobs,
+        hidden_by_email_cap_jobs=hidden_by_email_cap_jobs,
+    )
 
     email_sent = send_email_report(
         subject=f"CareerEngine Job Report: {format_subject_date()}",
         body=email_body,
-        attachment_paths=[duplicate_report_path],
+        attachment_paths=[unsent_report_path],
     )
 
     if email_sent:
