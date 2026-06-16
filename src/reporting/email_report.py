@@ -14,7 +14,37 @@ def format_report_date(report_date: date | None = None) -> str:
     if report_date is None:
         report_date = date.today()
 
-    return report_date.strftime("%A - %B %-d, %Y")
+    return f"{report_date.strftime('%A')} - {report_date.strftime('%B')} {report_date.day}, {report_date.year}"
+
+
+def format_subject_date(report_date: date | None = None) -> str:
+    if report_date is None:
+        report_date = date.today()
+
+    return f"{report_date.month}/{report_date.day}/{report_date.year}"
+
+
+def format_work_authorization_signal(eligibility_status: str) -> str:
+    labels = {
+        "likely_compatible": "Likely compatible",
+        "unclear": "Needs review",
+        "likely_incompatible": "Likely incompatible",
+    }
+
+    return labels.get(eligibility_status, eligibility_status.replace("_", " ").title())
+
+
+def format_opportunity_type(job: Job) -> str:
+    if job.is_internship and job.is_new_grad:
+        return "Internship / new-grad aligned"
+
+    if job.is_internship:
+        return "Internship"
+
+    if job.is_new_grad:
+        return "New-grad / early-career aligned"
+
+    return "General early-career review"
 
 
 def build_daily_email_report(
@@ -79,7 +109,7 @@ def build_daily_email_report(
     lines.append("Recommended opportunities are listed below in ranked order.")
     lines.append("")
 
-    lines.append("Summary")
+    lines.append("Summary:")
     lines.append(f"Companies checked: {len(health_records)}")
     lines.append(f"Successful sources: {successful_sources}")
     lines.append(f"Disabled sources: {disabled_sources}")
@@ -103,21 +133,21 @@ def build_daily_email_report(
     lines.append(f"New recommended jobs: {len(new_recommended_jobs)}")
     lines.append("")
 
-    lines.append("Score Guide")
+    lines.append("Score Guide:")
     lines.append("70+ = excellent match")
     lines.append("55-69 = strong match")
     lines.append("45-54 = relevant / worth checking")
     lines.append("Below 45 = lower-priority match")
     lines.append("")
 
-    lines.append("Description Similarity Guide")
+    lines.append("Description Similarity Guide:")
     lines.append("0.120+ = strong wording overlap")
     lines.append("0.070-0.119 = moderate wording overlap")
     lines.append("0.040-0.069 = low wording overlap")
     lines.append("Below 0.040 = very low wording overlap")
     lines.append("")
 
-    lines.append("Source Health")
+    lines.append("Source Health:")
     lines.append(
         f"{successful_sources} successful sources omitted from detailed list."
     )
@@ -126,13 +156,13 @@ def build_daily_email_report(
     lines.append("")
 
     if disabled_records:
-        lines.append("Disabled Sources")
+        lines.append("Disabled Sources:")
         for record in disabled_records:
             lines.append(f"- {record.company}: {record.reason or 'Disabled.'}")
         lines.append("")
 
     if attention_records:
-        lines.append("Sources Needing Attention")
+        lines.append("Sources Needing Attention:")
         for record in attention_records:
             lines.append(
                 f"- {record.company}: {record.status} "
@@ -146,29 +176,31 @@ def build_daily_email_report(
     lines.append("CareerEngine")
     lines.append("")
 
-    lines.append("New Recommended Jobs")
+    lines.append("New Recommended Jobs:")
     lines.append("")
 
     if not new_recommended_jobs:
         lines.append("No new recommended jobs found with the current filters.")
-        return "\n".join(lines)
+        return "\n".join(lines).rstrip()
 
     for index, job in enumerate(new_recommended_jobs, start=1):
         lines.append(f"{index}. {job.company} — {job.title}")
         lines.append(f"Location: {job.location}")
-        lines.append(f"Match strength: {get_match_strength_label(job.score)}")
-        lines.append(f"Score: {job.score:.2f} points")
+        lines.append(f"CareerEngine recommendation: {get_match_strength_label(job.score)}")
+        lines.append(f"Ranking points: {job.score:.2f}")
         lines.append(
-            f"Description similarity: {job.description_similarity:.3f} "
+            f"Profile wording alignment: {job.description_similarity:.3f} "
             f"({get_description_similarity_label(job.description_similarity)})"
         )
-        lines.append(f"Eligibility: {job.eligibility_status}")
-        lines.append(f"Internship: {job.is_internship}")
-        lines.append(f"New grad: {job.is_new_grad}")
-        lines.append(f"URL: {job.url}")
+        lines.append(
+            "Work authorization review: "
+            f"{format_work_authorization_signal(job.eligibility_status)}"
+        )
+        lines.append(f"Opportunity type: {format_opportunity_type(job)}")
+        lines.append(f"Application link: {job.url}")
 
         if job.why_matched:
-            lines.append("Why matched:")
+            lines.append("Why CareerEngine selected this role:")
             for reason in job.why_matched[:5]:
                 lines.append(f"- {reason}")
 

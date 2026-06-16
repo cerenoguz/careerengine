@@ -17,7 +17,7 @@ from src.ranking.rule_score import (
     is_new_grad,
     score_job,
 )
-from src.reporting.email_report import build_daily_email_report
+from src.reporting.email_report import build_daily_email_report, format_subject_date
 from src.reporting.email_sender import send_email_report
 from src.reporting.report_writer import save_daily_report
 from src.storage.database import filter_new_jobs, initialize_database, save_seen_jobs
@@ -607,7 +607,7 @@ def main() -> None:
     duplicate_report_path = save_duplicate_jobs_report(duplicate_recommended_jobs)
 
     email_sent = send_email_report(
-        subject="CareerEngine Daily Job Report",
+        subject=f"CareerEngine Job Report: {format_subject_date()}",
         body=email_body,
         attachment_paths=[duplicate_report_path],
     )

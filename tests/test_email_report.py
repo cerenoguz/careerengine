@@ -1,7 +1,13 @@
 from datetime import date
 
 from src.models import Job, SourceHealth
-from src.reporting.email_report import build_daily_email_report, format_report_date
+from src.reporting.email_report import (
+    build_daily_email_report,
+    format_opportunity_type,
+    format_report_date,
+    format_subject_date,
+    format_work_authorization_signal,
+)
 
 
 def make_job(index: int = 1) -> Job:
@@ -25,6 +31,31 @@ def test_format_report_date():
     assert format_report_date(date(2026, 6, 16)) == "Tuesday - June 16, 2026"
 
 
+def test_format_subject_date():
+    assert format_subject_date(date(2026, 6, 16)) == "6/16/2026"
+
+
+def test_format_work_authorization_signal():
+    assert format_work_authorization_signal("likely_compatible") == "Likely compatible"
+    assert format_work_authorization_signal("unclear") == "Needs review"
+    assert format_work_authorization_signal("likely_incompatible") == "Likely incompatible"
+
+
+def test_format_opportunity_type():
+    job = make_job()
+
+    assert format_opportunity_type(job) == "General early-career review"
+
+    job.is_new_grad = True
+    assert format_opportunity_type(job) == "New-grad / early-career aligned"
+
+    job.is_internship = True
+    assert format_opportunity_type(job) == "Internship / new-grad aligned"
+
+    job.is_new_grad = False
+    assert format_opportunity_type(job) == "Internship"
+
+
 def test_daily_email_report_uses_formal_company_style_without_separator_lines():
     report = build_daily_email_report(
         health_records=[],
@@ -40,13 +71,18 @@ def test_daily_email_report_uses_formal_company_style_without_separator_lines():
     assert "CareerEngine reviewed your configured company sources" in report
     assert "Recommended opportunities are listed below in ranked order." in report
     assert "Best of luck,\nCareerEngine" in report
-    assert "New Recommended Jobs" in report
+    assert "New Recommended Jobs:" in report
+
+    assert "Summary:" in report
+    assert "Score Guide:" in report
+    assert "Description Similarity Guide:" in report
+    assert "Source Health:" in report
 
     assert "-------" not in report
     assert "====" not in report
 
 
-def test_daily_email_report_includes_recommendation_details():
+def test_daily_email_report_uses_clear_recommendation_field_names():
     report = build_daily_email_report(
         health_records=[],
         total_jobs_collected=1,
@@ -58,13 +94,20 @@ def test_daily_email_report_includes_recommendation_details():
 
     assert "1. Company 1 — Software Engineer 1" in report
     assert "Location: Boston, MA" in report
-    assert "Match strength: Excellent match" in report
-    assert "Score: 90.00 points" in report
-    assert "Description similarity: 0.050" in report
-    assert "Eligibility: likely_compatible" in report
-    assert "URL: https://example.com/jobs/1" in report
-    assert "Why matched:" in report
+    assert "CareerEngine recommendation: Excellent match" in report
+    assert "Ranking points: 90.00" in report
+    assert "Profile wording alignment: 0.050" in report
+    assert "Work authorization review: Likely compatible" in report
+    assert "Opportunity type: General early-career review" in report
+    assert "Application link: https://example.com/jobs/1" in report
+    assert "Why CareerEngine selected this role:" in report
     assert "- Strong CS/Math degree relevance (+15)" in report
+
+    assert "Match strength:" not in report
+    assert "Description similarity:" not in report
+    assert "Eligibility:" not in report
+    assert "Internship:" not in report
+    assert "New grad:" not in report
 
 
 def test_daily_email_report_handles_no_new_recommendations():
@@ -116,12 +159,12 @@ def test_daily_email_report_summarizes_source_health_section():
         recommendations_hidden_by_email_cap=0,
     )
 
-    assert "Source Health" in report
+    assert "Source Health:" in report
     assert "1 successful sources omitted from detailed list." in report
     assert "1 disabled sources listed below." in report
     assert "1 sources need attention." in report
-    assert "Disabled Sources" in report
+    assert "Disabled Sources:" in report
     assert "- DisabledCo: Disabled for test." in report
-    assert "Sources Needing Attention" in report
+    assert "Sources Needing Attention:" in report
     assert "- BrokenCo: http_error (HTTP: 500, Jobs: 0)" in report
     assert "WorkingCo: success" not in report
