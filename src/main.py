@@ -24,10 +24,12 @@ from src.storage.database import filter_new_jobs, initialize_database, save_seen
 
 CONFIG_PATH = Path("config/companies.yaml")
 CANDIDATE_PROFILE_PATH = Path("config/candidate_profile.txt")
+DUPLICATE_REPORT_PATH = Path("reports/duplicate_recommendations.txt")
 
 MAX_RECOMMENDATIONS = 25
 DESCRIPTION_SIMILARITY_WEIGHT = 30
 SHOW_DESCRIPTION_SIMILARITY_DEBUG = False
+SHOW_REJECTION_DEBUG = False
 
 RECOMMENDABLE_CS_STATUSES = {
     "strong_cs_relevance",
@@ -108,6 +110,45 @@ US_STATE_ABBREVIATIONS = [
     "DC",
 ]
 
+US_CITY_SIGNALS = [
+    "san francisco",
+    "new york",
+    "new york city",
+    "nyc",
+    "boston",
+    "seattle",
+    "austin",
+    "chicago",
+    "los angeles",
+    "san diego",
+    "san jose",
+    "mountain view",
+    "palo alto",
+    "menlo park",
+    "redwood city",
+    "sunnyvale",
+    "santa clara",
+    "cupertino",
+    "berkeley",
+    "oakland",
+    "washington dc",
+    "washington, dc",
+    "district of columbia",
+    "atlanta",
+    "miami",
+    "dallas",
+    "houston",
+    "denver",
+    "portland",
+    "philadelphia",
+    "phoenix",
+    "salt lake city",
+    "raleigh",
+    "durham",
+    "charlotte",
+    "nashville",
+]
+
 
 def load_company_configs() -> list[dict[str, Any]]:
     with CONFIG_PATH.open("r", encoding="utf-8") as file:
@@ -132,14 +173,21 @@ def is_us_opt_location(location: str) -> bool:
     Positive-only location filter for a U.S. OPT-focused job search.
 
     A job is considered location-compatible only if it contains a U.S. signal,
-    a U.S. state name, a U.S. state abbreviation, or a U.S.-remote signal.
+    a U.S. state name, a U.S. city name, a U.S. state abbreviation,
+    or a U.S.-remote signal.
     """
-    normalized_location = location.lower()
+    normalized_location = location.lower().strip()
+    normalized_location = normalized_location.replace("-", " ")
+    normalized_location = normalized_location.replace(",", " ")
+    normalized_location = re.sub(r"\s+", " ", normalized_location)
 
     if any(signal in normalized_location for signal in US_LOCATION_SIGNALS):
         return True
 
     if any(state in normalized_location for state in US_STATE_NAMES):
+        return True
+
+    if any(city in normalized_location for city in US_CITY_SIGNALS):
         return True
 
     for abbreviation in US_STATE_ABBREVIATIONS:
@@ -184,6 +232,68 @@ def is_recommendable_job(job: Job) -> bool:
 
     return cs_relevance_status in RECOMMENDABLE_CS_STATUSES
 
+def get_rejection_reasons(job: Job) -> list[str]:
+    """
+    Explain why a job did not pass the final recommendation filter.
+    This is diagnostic only; it does not change ranking or filtering.
+    """
+    rejection_reasons: list[str] = []
+
+    if is_excluded_role(job.title, ""):
+        rejection_reasons.append("excluded role category based on title")
+
+    if job.score <= 0:
+        rejection_reasons.append("score is not positive")
+
+    if job.eligibility_status == "likely_incompatible":
+        rejection_reasons.append("likely work authorization incompatible")
+
+    if not is_us_opt_location(job.location):
+        rejection_reasons.append("location is not clearly U.S./OPT-compatible")
+
+    if has_unrealistic_seniority(job.title, job.description):
+        rejection_reasons.append("unrealistic seniority for new-grad/early-career")
+
+    cs_relevance_status, _ = classify_cs_relevance(job.title, job.description)
+    if cs_relevance_status not in RECOMMENDABLE_CS_STATUSES:
+        rejection_reasons.append(f"not CS/Math relevant enough: {cs_relevance_status}")
+
+    return rejection_reasons
+
+
+def print_rejection_debug(ranked_jobs: list[Job]) -> None:
+    """
+    Print the highest-scoring rejected jobs so we can tune filters safely.
+    """
+    if not SHOW_REJECTION_DEBUG:
+        return
+
+    rejected_jobs = [
+        job for job in ranked_jobs
+        if job.score > 0 and not is_recommendable_job(job)
+    ]
+
+    print()
+    print("TOP REJECTED JOBS DEBUG")
+    print("-----------------------")
+
+    if not rejected_jobs:
+        print("No high-scoring rejected jobs found.")
+        return
+
+    for job in rejected_jobs[:15]:
+        rejection_reasons = get_rejection_reasons(job)
+
+        print(f"{job.company} | Score: {job.score:.2f} | {job.title} | {job.location}")
+        print(f"Eligibility: {job.eligibility_status}")
+        print(f"Description similarity: {job.description_similarity:.3f}")
+        print("Rejected because:")
+
+        for reason in rejection_reasons:
+            print(f"  - {reason}")
+
+        print(job.url)
+        print()
 
 def enrich_jobs(jobs: list[Job], candidate_profile: str) -> None:
     """
@@ -237,6 +347,7 @@ def print_summary(
     all_jobs: list[Job],
     health_records: list[SourceHealth],
     recommended_jobs: list[Job],
+    deduplicated_recommended_jobs: list[Job],
     new_recommended_jobs: list[Job],
 ) -> None:
     # Count excluded roles by title only.
@@ -260,7 +371,13 @@ def print_summary(
         1 for job in all_jobs if has_unrealistic_seniority(job.title, job.description)
     )
 
-    duplicate_recommendations_removed = len(recommended_jobs) - len(new_recommended_jobs)
+    duplicate_recommendations_removed = (
+        len(recommended_jobs) - len(deduplicated_recommended_jobs)
+    )
+
+    recommendations_hidden_by_email_cap = (
+        len(deduplicated_recommended_jobs) - len(new_recommended_jobs)
+    )
 
     print()
     print("SUMMARY")
@@ -273,8 +390,8 @@ def print_summary(
     print(f"Unrealistic seniority jobs removed: {unrealistic_seniority_count}")
     print(f"Recommended jobs before deduplication: {len(recommended_jobs)}")
     print(f"Duplicate recommendations removed: {duplicate_recommendations_removed}")
+    print(f"Recommendations hidden by email cap: {recommendations_hidden_by_email_cap}")
     print(f"New recommended jobs: {len(new_recommended_jobs)}")
-
 
 def print_recommended_jobs(recommended_jobs: list[Job]) -> None:
     print()
@@ -332,6 +449,55 @@ def print_description_similarity_debug(all_jobs: list[Job]) -> None:
             f"Score: {job.score:.2f} | {job.title} | {job.location}"
         )
 
+def build_duplicate_jobs_report(duplicate_jobs: list[Job]) -> str:
+    """
+    Build a text report of jobs that passed all filters but were already seen.
+    """
+    lines = [
+        "CareerEngine Duplicate Recommendations",
+        "======================================",
+        "",
+        f"Duplicate jobs found: {len(duplicate_jobs)}",
+        "",
+    ]
+
+    if not duplicate_jobs:
+        lines.append("No duplicate recommended jobs found.")
+        return "\n".join(lines)
+
+    for index, job in enumerate(duplicate_jobs, start=1):
+        lines.extend(
+            [
+                f"{index}. {job.company} — {job.title}",
+                f"Location: {job.location}",
+                f"Score: {job.score:.2f}",
+                f"Description similarity: {job.description_similarity:.3f}",
+                f"Eligibility: {job.eligibility_status}",
+                f"Internship: {job.is_internship}",
+                f"New grad: {job.is_new_grad}",
+                f"URL: {job.url}",
+                "Why matched:",
+            ]
+        )
+
+        for reason in job.why_matched[:8]:
+            lines.append(f"- {reason}")
+
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def save_duplicate_jobs_report(duplicate_jobs: list[Job]) -> Path:
+    """
+    Save duplicate recommended jobs to a TXT report.
+    """
+    DUPLICATE_REPORT_PATH.parent.mkdir(exist_ok=True)
+
+    duplicate_report = build_duplicate_jobs_report(duplicate_jobs)
+    DUPLICATE_REPORT_PATH.write_text(duplicate_report + "\n", encoding="utf-8")
+
+    return DUPLICATE_REPORT_PATH
 
 def main() -> None:
     initialize_database()
@@ -356,17 +522,26 @@ def main() -> None:
         job for job in ranked_jobs if is_recommendable_job(job)
     ]
 
-    new_recommended_jobs = filter_new_jobs(recommended_jobs)
+    deduplicated_recommended_jobs = filter_new_jobs(recommended_jobs)
+    deduplicated_job_ids = {job.id for job in deduplicated_recommended_jobs}
+
+    duplicate_recommended_jobs = [
+        job for job in recommended_jobs if job.id not in deduplicated_job_ids
+    ]
+
+    new_recommended_jobs = deduplicated_recommended_jobs[:MAX_RECOMMENDATIONS]
 
     print_source_health(health_records)
     print_summary(
         all_jobs=all_jobs,
         health_records=health_records,
         recommended_jobs=recommended_jobs,
+        deduplicated_recommended_jobs=deduplicated_recommended_jobs,
         new_recommended_jobs=new_recommended_jobs,
     )
     print_recommended_jobs(new_recommended_jobs)
     print_description_similarity_debug(all_jobs)
+    print_rejection_debug(ranked_jobs)
 
     email_body = build_daily_email_report(
         health_records=health_records,
@@ -384,12 +559,18 @@ def main() -> None:
     print()
     print(f"Saved email report to: {report_path}")
 
-    send_email_report(
+    duplicate_report_path = save_duplicate_jobs_report(duplicate_recommended_jobs)
+
+    email_sent = send_email_report(
         subject="CareerEngine Daily Job Report",
         body=email_body,
+        attachment_paths=[duplicate_report_path],
     )
 
-    save_seen_jobs(new_recommended_jobs)
+    if email_sent:
+        save_seen_jobs(new_recommended_jobs)
+    else:
+        print("Jobs were not marked as seen because no email was sent.")    
 
 
 if __name__ == "__main__":

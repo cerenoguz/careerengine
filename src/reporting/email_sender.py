@@ -1,9 +1,14 @@
 import os
 import smtplib
 from email.message import EmailMessage
+from pathlib import Path
 
 
-def send_email_report(subject: str, body: str) -> bool:
+def send_email_report(
+    subject: str,
+    body: str,
+    attachment_paths: list[Path] | None = None,
+) -> bool:
     """
     Send the CareerEngine report by email.
 
@@ -16,6 +21,8 @@ def send_email_report(subject: str, body: str) -> bool:
     - CAREERENGINE_EMAIL_TO
     - CAREERENGINE_EMAIL_USERNAME
     - CAREERENGINE_EMAIL_PASSWORD
+
+    Returns True only when an email was actually sent.
     """
     send_email_enabled = os.getenv("CAREERENGINE_SEND_EMAIL", "false").lower()
 
@@ -35,6 +42,19 @@ def send_email_report(subject: str, body: str) -> bool:
     message["From"] = email_from
     message["To"] = email_to
     message.set_content(body)
+
+    for attachment_path in attachment_paths or []:
+        if not attachment_path.exists():
+            print(f"Attachment skipped because file does not exist: {attachment_path}")
+            continue
+
+        attachment_text = attachment_path.read_text(encoding="utf-8")
+
+        message.add_attachment(
+            attachment_text,
+            subtype="plain",
+            filename=attachment_path.name,
+        )
 
     with smtplib.SMTP(smtp_host, smtp_port) as server:
         server.starttls()
