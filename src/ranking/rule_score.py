@@ -315,6 +315,29 @@ UNREALISTIC_SENIORITY_PATTERNS = [
 ]
 
 
+MID_LEVEL_TITLE_PATTERNS = [
+    r"\bsoftware engineer\s+ii\b",
+    r"\bbackend engineer\s+ii\b",
+    r"\bfull stack engineer\s+ii\b",
+    r"\bfull-stack engineer\s+ii\b",
+    r"\bdata engineer\s+ii\b",
+    r"\bengineer\s+ii\b",
+    r"\bsoftware engineer\s*\(l2\)(?=\W|$)",
+    r"\bengineer\s*\(l2\)(?=\W|$)",
+    r"\bsoftware engineer\s+l2(?=\W|$)",
+    r"\bengineer\s+l2(?=\W|$)",
+    r"\blevel\s*2\b",
+]
+
+
+def has_mid_level_title(title: str) -> bool:
+    """
+    Return True for title-level signals that usually indicate a role above
+    pure new-grad / entry-level, but not senior enough to exclude entirely.
+    """
+    return matches_any_pattern(title, MID_LEVEL_TITLE_PATTERNS)
+
+
 def has_unrealistic_seniority(title: str, description: str) -> bool:
     """
     Return True for roles that are CS-related but unrealistic for a new-grad /
@@ -458,6 +481,14 @@ def score_job(title: str, description: str, eligibility_status: str) -> tuple[fl
     if is_new_grad(title, description):
         score += 12
         reasons.append("New grad / early-career opportunity (+12)")
+
+    if (
+        has_mid_level_title(title)
+        and not is_internship(title, description)
+        and not is_new_grad(title, description)
+    ):
+        score -= 8
+        reasons.append("Mid-level title signal (-8)")
 
     for keyword, points in SENIORITY_PENALTY_KEYWORDS.items():
         if contains_phrase(text, keyword):
