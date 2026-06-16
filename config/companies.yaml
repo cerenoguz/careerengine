@@ -12,11 +12,12 @@ companies:
   compliance_status: api_preferred
   max_requests_per_run: 1
 - name: Plaid
-  source_type: lever
-  source_url: https://api.lever.co/v0/postings/plaid?mode=json
-  collection_status: disabled
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/plaid
+  collection_status: enabled
   compliance_status: api_preferred
   max_requests_per_run: 1
+  notes: Validated Ashby source from source validation report.
 - name: Linear
   source_type: ashby
   source_url: https://api.ashbyhq.com/posting-api/job-board/Linear
@@ -95,12 +96,12 @@ companies:
   disabled_reason: Custom careers page. Need source validation or custom collector
     before enabling.
 - name: Ramp
-  source_type: greenhouse
-  source_url: https://boards-api.greenhouse.io/v1/boards/ramp/jobs
-  collection_status: disabled
-  compliance_status: manual_review_required
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/ramp
+  collection_status: enabled
+  compliance_status: api_preferred
   max_requests_per_run: 1
-  disabled_reason: Initial test returned HTTP 404. Source URL needs validation.
+  notes: Validated Ashby source from source validation report.
 - name: Netflix
   source_type: greenhouse
   source_url: https://boards-api.greenhouse.io/v1/boards/netflix/jobs
@@ -177,3 +178,101 @@ companies:
   collection_status: enabled
   compliance_status: api_preferred
   max_requests_per_run: 1
+- name: Supabase
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/supabase
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Validated Ashby source from source validation report.
+- name: Airtable
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/airtable/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Validated Greenhouse source from source validation report.
+- name: Brex
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/brex/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Validated Greenhouse source from source validation report.
+- name: Scale AI
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/scaleai/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Validated Greenhouse source from source validation report.
+- name: MongoDB
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/mongodb/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Validated Greenhouse source from source validation report.
+- name: Elastic
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/elastic/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Validated Greenhouse source from source validation report.
+- name: Confluent
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/confluent
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Validated Ashby source from source validation report.
+- name: Snowflake
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/snowflake
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Validated Ashby source from source validation report.
+- name: GitLab
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/gitlab/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Validated Greenhouse source from source validation report.
+- name: Twilio
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/twilio/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Validated Greenhouse source from source validation report.
+- name: WHOOP
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/whoop
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Validated Ashby source from source validation report.
+- name: Flatiron Health
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/flatironhealth/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Validated Greenhouse source from source validation report.
+- name: Komodo Health
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/komodohealth/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Validated Greenhouse source from source validation report.
+- name: PathAI
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/pathai/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Validated Greenhouse source from source validation report.
