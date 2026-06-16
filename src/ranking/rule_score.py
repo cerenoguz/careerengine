@@ -23,7 +23,7 @@ NEW_GRAD_PATTERNS = [
     r"\bentry level\b",
     r"\bentry-level\b",
     r"\bassociate software engineer\b",
-    r"\bsoftware engineer i\b",
+    r"\bsoftware engineer\s+i\b(?!i)",
     r"\bgraduate software engineer\b",
     r"\brotational program\b",
 ]
