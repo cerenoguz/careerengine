@@ -151,6 +151,18 @@ LOW_CS_RELEVANCE_PATTERNS = [
 # -----------------------------
 
 ROLE_KEYWORDS = {
+    "software engineering intern": 12,
+    "software engineer intern": 12,
+    "software engineer internship": 12,
+    "backend intern": 10,
+    "full stack intern": 10,
+    "full-stack intern": 10,
+    "data engineering intern": 10,
+    "machine learning intern": 10,
+    "ml intern": 10,
+    "ai intern": 10,
+    "new grad software engineer": 14,
+    "graduate software engineer": 12,
     "software engineer": 10,
     "software engineer i": 12,
     "associate software engineer": 12,

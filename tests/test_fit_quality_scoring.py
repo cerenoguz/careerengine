@@ -44,3 +44,27 @@ def test_new_grad_role_does_not_receive_mid_level_penalty():
     )
 
     assert "Mid-level title signal (-8)" not in reasons
+
+
+def test_software_engineering_intern_gets_explicit_role_boost():
+    score, reasons = score_job(
+        "Software Engineering Intern (Summer 2026)",
+        DESCRIPTION,
+        "likely_compatible",
+    )
+
+    assert score > 0
+    assert "Role match: software engineering intern (+12)" in reasons
+    assert "Internship opportunity (+10)" in reasons
+
+
+def test_new_grad_software_engineer_gets_explicit_role_boost():
+    score, reasons = score_job(
+        "New Grad Software Engineer",
+        DESCRIPTION,
+        "unclear",
+    )
+
+    assert score > 0
+    assert "Role match: new grad software engineer (+14)" in reasons
+    assert "New grad / early-career opportunity (+12)" in reasons
