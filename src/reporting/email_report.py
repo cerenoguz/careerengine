@@ -34,7 +34,25 @@ def build_daily_email_report(
 
     lines.append("Summary")
     lines.append("-------")
+    successful_sources = sum(
+        1 for record in health_records if record.status == "success"
+    )
+    disabled_sources = sum(
+        1 for record in health_records if record.status == "disabled"
+    )
+    sources_needing_attention = sum(
+        1
+        for record in health_records
+        if record.status not in {"success", "disabled"}
+    )
+
     lines.append(f"Companies checked: {len(health_records)}")
+    lines.append(f"Successful sources: {successful_sources}")
+    lines.append(f"Disabled sources: {disabled_sources}")
+
+    if sources_needing_attention:
+        lines.append(f"Sources needing attention: {sources_needing_attention}")
+
     lines.append(f"Total jobs collected: {total_jobs_collected}")
     lines.append(
         "Recommended jobs before deduplication: "

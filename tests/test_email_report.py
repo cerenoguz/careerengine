@@ -59,3 +59,45 @@ def test_email_report_includes_recommended_job_details() -> None:
     assert "Description similarity: 0.420" in email_body
     assert "https://example.com/job-1" in email_body
     assert "Target role: software engineer" in email_body
+from src.models import SourceHealth
+from src.reporting.email_report import build_daily_email_report
+
+
+def test_daily_email_report_includes_source_status_counts():
+    report = build_daily_email_report(
+        health_records=[
+            SourceHealth(
+                company="WorkingCo",
+                source="ashby",
+                status="success",
+                http_code=200,
+                jobs_found=10,
+            ),
+            SourceHealth(
+                company="DisabledCo",
+                source="custom",
+                status="disabled",
+                http_code=None,
+                jobs_found=0,
+                reason="Disabled for test.",
+            ),
+            SourceHealth(
+                company="BrokenCo",
+                source="greenhouse",
+                status="http_error",
+                http_code=500,
+                jobs_found=0,
+                reason="Server error.",
+            ),
+        ],
+        total_jobs_collected=10,
+        recommended_jobs_before_deduplication=2,
+        new_recommended_jobs=[],
+        duplicate_recommendations_removed=0,
+        recommendations_hidden_by_email_cap=0,
+    )
+
+    assert "Companies checked: 3" in report
+    assert "Successful sources: 1" in report
+    assert "Disabled sources: 1" in report
+    assert "Sources needing attention: 1" in report
