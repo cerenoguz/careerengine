@@ -24,7 +24,9 @@ def test_email_report_includes_summary_and_source_health() -> None:
     assert "CareerEngine Daily Job Report" in email_body
     assert "Companies checked: 1" in email_body
     assert "Total jobs collected: 10" in email_body
-    assert "Test Company: success" in email_body
+    assert "Successful sources: 1" in email_body
+    assert "1 successful sources omitted from detailed list." in email_body
+    assert "Test Company: success" not in email_body
     assert "No new recommended jobs found" in email_body
 
 

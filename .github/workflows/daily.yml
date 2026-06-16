@@ -3,8 +3,8 @@ name: CareerEngine Daily Job Report
 on:
   workflow_dispatch:
   schedule:
-    # Runs every morning at 6:30 AM Boston time
-    - cron: "30 6 * * *"
+    # Runs every morning at 6:47 AM New York time
+    - cron: "47 6 * * *"
       timezone: "America/New_York"
 
 jobs:

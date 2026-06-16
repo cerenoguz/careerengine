@@ -83,20 +83,46 @@ def build_daily_email_report(
     lines.append("Below 0.040 = very low wording overlap")
     lines.append("")
 
+    lines.append("")
     lines.append("Source Health")
     lines.append("-------------")
+    lines.append(
+        f"{successful_sources} successful sources omitted from detailed list."
+    )
+    lines.append(f"{disabled_sources} disabled sources listed below.")
+    lines.append(f"{sources_needing_attention} sources need attention.")
 
-    for health in health_records:
-        lines.append(
-            f"- {health.company}: {health.status} "
-            f"(HTTP: {health.http_code}, Jobs: {health.jobs_found})"
-        )
+    disabled_records = [
+        record for record in health_records if record.status == "disabled"
+    ]
+    attention_records = [
+        record
+        for record in health_records
+        if record.status not in {"success", "disabled"}
+    ]
 
-        if health.reason:
-            lines.append(f"  Reason: {health.reason}")
+    if disabled_records:
+        lines.append("")
+        lines.append("Disabled Sources")
+        lines.append("----------------")
+        for record in disabled_records:
+            lines.append(
+                f"- {record.company}: {record.reason or 'Disabled.'}"
+            )
+
+    if attention_records:
+        lines.append("")
+        lines.append("Sources Needing Attention")
+        lines.append("-------------------------")
+        for record in attention_records:
+            lines.append(
+                f"- {record.company}: {record.status} "
+                f"(HTTP: {record.http_code}, Jobs: {record.jobs_found})"
+            )
+            if record.reason:
+                lines.append(f"  Reason: {record.reason}")
 
     lines.append("")
-
     lines.append("New Recommended Jobs")
     lines.append("--------------------")
 
