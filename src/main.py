@@ -185,6 +185,34 @@ def is_us_opt_location(location: str) -> bool:
     if any(signal in normalized_location for signal in US_LOCATION_SIGNALS):
         return True
 
+    # Some ATS locations use country/region prefixes that look like U.S. state
+    # abbreviations. Examples:
+    # - DE-Berlin should not match Delaware.
+    # - CA-Ontario-Toronto should not match California.
+    # - IN-Pune should not match Indiana.
+    non_us_country_prefix_patterns = [
+        r"^de[-_]",
+        r"^ca[-_]",
+        r"^in[-_]",
+        r"^uk[-_]",
+        r"^gb[-_]",
+        r"^ie[-_]",
+        r"^nl[-_]",
+        r"^fr[-_]",
+        r"^es[-_]",
+        r"^br[-_]",
+        r"^sg[-_]",
+        r"^au[-_]",
+        r"^jp[-_]",
+        r"^kr[-_]",
+    ]
+
+    if any(
+        re.search(pattern, location.strip(), flags=re.IGNORECASE)
+        for pattern in non_us_country_prefix_patterns
+    ):
+        return False
+
     if any(state in normalized_location for state in US_STATE_NAMES):
         return True
 

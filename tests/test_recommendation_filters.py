@@ -126,3 +126,17 @@ def test_likely_incompatible_authorization_is_not_recommendable() -> None:
     )
 
     assert is_recommendable_job(job) is False
+
+from src.main import is_us_opt_location
+
+
+def test_location_filter_rejects_country_prefixes_that_look_like_us_states():
+    assert is_us_opt_location("DE-Berlin-Trion Building") is False
+    assert is_us_opt_location("CA-Ontario-Toronto") is False
+    assert is_us_opt_location("IN-Pune") is False
+
+
+def test_location_filter_still_accepts_us_locations_with_state_codes():
+    assert is_us_opt_location("US-CA-Menlo Park") is True
+    assert is_us_opt_location("Boston, MA") is True
+    assert is_us_opt_location("Remote - US") is True
