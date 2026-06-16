@@ -7,10 +7,23 @@ def build_daily_email_report(
     total_jobs_collected: int,
     recommended_jobs_before_deduplication: int,
     new_recommended_jobs: list[Job],
+    duplicate_recommendations_removed: int | None = None,
+    recommendations_hidden_by_email_cap: int | None = None,
 ) -> str:
-    duplicate_recommendations_removed = (
-        recommended_jobs_before_deduplication - len(new_recommended_jobs)
-    )
+    """
+    Build the plain-text daily email report.
+
+    duplicate_recommendations_removed:
+        Jobs that passed all filters but were already sent before.
+
+    recommendations_hidden_by_email_cap:
+        Jobs that passed all filters and were not duplicates, but were not included
+        because the daily email is capped.
+    """
+    if duplicate_recommendations_removed is None:
+        duplicate_recommendations_removed = (
+            recommended_jobs_before_deduplication - len(new_recommended_jobs)
+        )
 
     lines: list[str] = []
 
@@ -23,10 +36,17 @@ def build_daily_email_report(
     lines.append(f"Companies checked: {len(health_records)}")
     lines.append(f"Total jobs collected: {total_jobs_collected}")
     lines.append(
-        f"Recommended jobs before deduplication: "
+        "Recommended jobs before deduplication: "
         f"{recommended_jobs_before_deduplication}"
     )
     lines.append(f"Duplicate recommendations removed: {duplicate_recommendations_removed}")
+
+    if recommendations_hidden_by_email_cap is not None:
+        lines.append(
+            "Recommendations hidden by email cap: "
+            f"{recommendations_hidden_by_email_cap}"
+        )
+
     lines.append(f"New recommended jobs: {len(new_recommended_jobs)}")
     lines.append("")
 

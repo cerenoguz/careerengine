@@ -547,6 +547,10 @@ def main() -> None:
         health_records=health_records,
         total_jobs_collected=len(all_jobs),
         recommended_jobs_before_deduplication=len(recommended_jobs),
+        duplicate_recommendations_removed=len(duplicate_recommended_jobs),
+        recommendations_hidden_by_email_cap=(
+            len(deduplicated_recommended_jobs) - len(new_recommended_jobs)
+        ),
         new_recommended_jobs=new_recommended_jobs,
     )
 
