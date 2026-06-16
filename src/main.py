@@ -7,6 +7,7 @@ import yaml
 from src.collectors.factory import collect_jobs_for_company
 from src.models import Job, SourceHealth
 from src.ranking.description_similarity import compute_description_similarity
+from src.ranking.match_interpretation import get_description_similarity_label, get_match_strength_label
 from src.ranking.opt_signals import classify_eligibility
 from src.ranking.rule_score import (
     classify_cs_relevance,
@@ -284,9 +285,15 @@ def print_rejection_debug(ranked_jobs: list[Job]) -> None:
     for job in rejected_jobs[:15]:
         rejection_reasons = get_rejection_reasons(job)
 
-        print(f"{job.company} | Score: {job.score:.2f} | {job.title} | {job.location}")
+        print(
+            f"{job.company} | Match: {get_match_strength_label(job.score)} | "
+            f"Score: {job.score:.2f} | {job.title} | {job.location}"
+        )
         print(f"Eligibility: {job.eligibility_status}")
-        print(f"Description similarity: {job.description_similarity:.3f}")
+        print(
+            f"Description similarity: {job.description_similarity:.3f} "
+            f"({get_description_similarity_label(job.description_similarity)})"
+        )
         print("Rejected because:")
 
         for reason in rejection_reasons:
@@ -408,8 +415,14 @@ def print_recommended_jobs(recommended_jobs: list[Job]) -> None:
             job.description,
         )
 
-        print(f"{job.company} | Score: {job.score:.2f} | {job.title} | {job.location}")
-        print(f"Description similarity: {job.description_similarity:.3f}")
+        print(
+            f"{job.company} | Match: {get_match_strength_label(job.score)} | "
+            f"Score: {job.score:.2f} | {job.title} | {job.location}"
+        )
+        print(
+            f"Description similarity: {job.description_similarity:.3f} "
+            f"({get_description_similarity_label(job.description_similarity)})"
+        )
         print(f"Eligibility: {job.eligibility_status}")
         print(f"CS/Math relevance: {cs_relevance_status}")
         print(f"Internship: {job.is_internship} | New Grad: {job.is_new_grad}")

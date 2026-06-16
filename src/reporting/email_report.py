@@ -1,4 +1,5 @@
 from src.models import Job, SourceHealth
+from src.ranking.match_interpretation import get_description_similarity_label, get_match_strength_label
 
 
 def build_daily_email_report(
@@ -49,6 +50,20 @@ def build_daily_email_report(
 
     lines.append(f"New recommended jobs: {len(new_recommended_jobs)}")
     lines.append("")
+    lines.append("Score Guide")
+    lines.append("-----------")
+    lines.append("70+ = excellent match")
+    lines.append("55-69 = strong match")
+    lines.append("45-54 = relevant / worth checking")
+    lines.append("Below 45 = weak / review manually")
+    lines.append("")
+    lines.append("Description Similarity Guide")
+    lines.append("----------------------------")
+    lines.append("0.120+ = strong wording overlap")
+    lines.append("0.070-0.119 = moderate wording overlap")
+    lines.append("0.040-0.069 = low wording overlap")
+    lines.append("Below 0.040 = very low wording overlap")
+    lines.append("")
 
     lines.append("Source Health")
     lines.append("-------------")
@@ -75,8 +90,12 @@ def build_daily_email_report(
         lines.append("")
         lines.append(f"{index}. {job.company} — {job.title}")
         lines.append(f"Location: {job.location}")
-        lines.append(f"Score: {job.score:.2f}")
-        lines.append(f"Description similarity: {job.description_similarity:.3f}")
+        lines.append(f"Match strength: {get_match_strength_label(job.score)}")
+        lines.append(f"Score: {job.score:.2f} points")
+        lines.append(
+            f"Description similarity: {job.description_similarity:.3f} "
+            f"({get_description_similarity_label(job.description_similarity)})"
+        )
         lines.append(f"Eligibility: {job.eligibility_status}")
         lines.append(f"Internship: {job.is_internship}")
         lines.append(f"New grad: {job.is_new_grad}")
