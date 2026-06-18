@@ -18,6 +18,7 @@ class Job:
     is_new_grad: bool = False
     eligibility_status: str = "unclear"
     description_similarity: float = 0.0
+    semantic_similarity: float = 0.0
     score: float = 0.0
     why_matched: list[str] = field(default_factory=list)
 

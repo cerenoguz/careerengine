@@ -10,6 +10,7 @@ from src.collectors.factory import collect_jobs_for_company
 from src.models import Job, SourceHealth
 from src.ranking.delivery_queue import prioritize_pending_jobs
 from src.ranking.description_similarity import compute_description_similarity
+from src.ranking.semantic_similarity import compute_semantic_similarities
 from src.ranking.match_interpretation import get_description_similarity_label, get_match_strength_label
 from src.ranking.opt_signals import classify_eligibility
 from src.ranking.rule_score import (
@@ -23,6 +24,7 @@ from src.ranking.rule_score import (
 from src.reporting.email_report import build_daily_email_report, format_subject_date
 from src.reporting.email_sender import send_email_report
 from src.reporting.report_writer import save_daily_report
+from src.reporting.semantic_shadow_report import save_semantic_shadow_report
 from src.reporting.unsent_report import save_unsent_recommendations_report
 from src.storage.database import (
     current_new_york_date,
@@ -42,6 +44,7 @@ from src.storage.database import (
 CONFIG_PATH = Path("config/companies.yaml")
 CANDIDATE_PROFILE_PATH = Path("config/candidate_profile.txt")
 UNSENT_RECOMMENDATIONS_REPORT_PATH = Path("reports/unsent_recommendations.txt")
+SEMANTIC_SHADOW_REPORT_PATH = Path("reports/semantic_shadow_report.txt")
 
 MAX_RECOMMENDATIONS = 25
 DESCRIPTION_SIMILARITY_WEIGHT = 30
@@ -596,6 +599,23 @@ def main() -> None:
     recommended_jobs = [
         job for job in ranked_jobs if is_recommendable_job(job)
     ]
+
+    semantic_scores, semantic_shadow_status = compute_semantic_similarities(
+        candidate_profile,
+        [job.description or "" for job in recommended_jobs],
+    )
+
+    for job, semantic_score in zip(recommended_jobs, semantic_scores):
+        job.semantic_similarity = semantic_score
+
+    semantic_shadow_report_path = save_semantic_shadow_report(
+        path=SEMANTIC_SHADOW_REPORT_PATH,
+        jobs=recommended_jobs,
+        status=semantic_shadow_status,
+    )
+
+    print(f"Semantic shadow status: {semantic_shadow_status}")
+    print(f"Saved semantic shadow report to: {semantic_shadow_report_path}")
 
     deduplicated_recommended_jobs = filter_new_jobs(recommended_jobs)
     deduplicated_job_ids = {job.id for job in deduplicated_recommended_jobs}

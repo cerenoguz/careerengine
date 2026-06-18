@@ -19,6 +19,8 @@ jobs:
       CAREERENGINE_EMAIL_TO: ${{ secrets.CAREERENGINE_EMAIL_TO }}
       CAREERENGINE_EMAIL_USERNAME: ${{ secrets.CAREERENGINE_EMAIL_USERNAME }}
       CAREERENGINE_EMAIL_PASSWORD: ${{ secrets.CAREERENGINE_EMAIL_PASSWORD }}
+      CAREERENGINE_ENABLE_SEMANTIC_SHADOW: "true"
+      CAREERENGINE_SEMANTIC_BATCH_SIZE: "32"
 
     steps:
       - name: Check out repository
@@ -28,6 +30,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+
+      - name: Restore Sentence-BERT model cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: sentence-bert-${{ runner.os }}-all-minilm-l6-v2-v1
 
       - name: Restore deduplication database cache
         uses: actions/cache@v4
@@ -57,5 +65,6 @@ jobs:
           path: |
             reports/daily_report.txt
             reports/unsent_recommendations.txt
+            reports/semantic_shadow_report.txt
             data/careerengine.sqlite
           if-no-files-found: warn
