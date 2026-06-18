@@ -86,3 +86,39 @@ def test_principal_software_engineer_i_does_not_get_software_engineer_i_boost():
 
     assert "Role match: software engineer i (+12)" not in reasons
     assert "New grad / early-career opportunity (+12)" not in reasons
+
+
+def test_explicit_early_career_role_receives_ranking_priority():
+    _, reasons = score_job(
+        "Software Engineer I (Quality)",
+        DESCRIPTION,
+        "likely_compatible",
+    )
+
+    assert "Early-career ranking priority (+5)" in reasons
+
+
+def test_software_engineer_i_outranks_close_level_two_role():
+    software_engineer_i_score, _ = score_job(
+        "Software Engineer I (Quality)",
+        DESCRIPTION,
+        "likely_compatible",
+    )
+
+    software_engineer_ii_score, _ = score_job(
+        "Software Engineer II (Backend, Platform)",
+        DESCRIPTION,
+        "likely_compatible",
+    )
+
+    assert software_engineer_i_score > software_engineer_ii_score
+
+
+def test_principal_software_engineer_i_does_not_receive_early_career_priority():
+    _, reasons = score_job(
+        "Principal Software Engineer I - Snowhouse Foundation",
+        DESCRIPTION,
+        "unclear",
+    )
+
+    assert "Early-career ranking priority (+5)" not in reasons

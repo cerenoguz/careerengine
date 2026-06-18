@@ -455,6 +455,22 @@ def classify_cs_relevance(title: str, description: str) -> tuple[str, list[str]]
 # Scoring
 # -----------------------------
 
+EARLY_CAREER_RANKING_PRIORITY_BONUS = 5
+
+
+def has_explicit_early_career_title(title: str, description: str) -> bool:
+    """
+    Return True only for title-level internship or new-grad signals that are
+    appropriate for the user's early-career search.
+
+    Senior-title blockers prevent false positives such as
+    Principal Software Engineer I.
+    """
+    if has_senior_title_blocker(title):
+        return False
+
+    return is_internship(title, description) or is_new_grad(title, description)
+
 def score_job(title: str, description: str, eligibility_status: str) -> tuple[float, list[str]]:
     """
     Score a job using both title and description.
@@ -524,6 +540,13 @@ def score_job(title: str, description: str, eligibility_status: str) -> tuple[fl
     if is_new_grad(title, description):
         score += 12
         reasons.append("New grad / early-career opportunity (+12)")
+
+    if has_explicit_early_career_title(title, description):
+        score += EARLY_CAREER_RANKING_PRIORITY_BONUS
+        reasons.append(
+            "Early-career ranking priority "
+            f"(+{EARLY_CAREER_RANKING_PRIORITY_BONUS})"
+        )
 
     if (
         has_mid_level_title(title)
