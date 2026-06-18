@@ -54,4 +54,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: careerengine-daily-report
-          path: reports/daily_report.txt
+          path: |
+            reports/daily_report.txt
+            reports/unsent_recommendations.txt
+            data/careerengine.sqlite
+          if-no-files-found: warn

@@ -1,4 +1,6 @@
+import os
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -6,6 +8,7 @@ import yaml
 
 from src.collectors.factory import collect_jobs_for_company
 from src.models import Job, SourceHealth
+from src.ranking.delivery_queue import prioritize_pending_jobs
 from src.ranking.description_similarity import compute_description_similarity
 from src.ranking.match_interpretation import get_description_similarity_label, get_match_strength_label
 from src.ranking.opt_signals import classify_eligibility
@@ -21,7 +24,19 @@ from src.reporting.email_report import build_daily_email_report, format_subject_
 from src.reporting.email_sender import send_email_report
 from src.reporting.report_writer import save_daily_report
 from src.reporting.unsent_report import save_unsent_recommendations_report
-from src.storage.database import filter_new_jobs, initialize_database, save_seen_jobs
+from src.storage.database import (
+    current_new_york_date,
+    filter_new_jobs,
+    get_pending_job_ids,
+    get_seen_job_count,
+    has_successful_delivery_for_date,
+    initialize_database,
+    record_run_audit,
+    record_successful_delivery,
+    remove_pending_jobs,
+    save_pending_jobs,
+    save_seen_jobs,
+)
 
 
 CONFIG_PATH = Path("config/companies.yaml")
@@ -542,8 +557,25 @@ def save_unsent_report(
     )
 
 
+
+def get_run_context() -> tuple[str, str]:
+    if os.getenv("GITHUB_ACTIONS", "").lower() == "true":
+        return (
+            os.getenv("GITHUB_RUN_ID", "github-unknown"),
+            "github_actions",
+        )
+
+    timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+    return f"local-{timestamp}", "local"
+
+
+
 def main() -> None:
     initialize_database()
+
+    run_id, environment = get_run_context()
+    delivery_date = current_new_york_date()
+    seen_jobs_before = get_seen_job_count()
 
     company_configs = load_company_configs()
     candidate_profile = load_candidate_profile()
@@ -572,8 +604,18 @@ def main() -> None:
         job for job in recommended_jobs if job.id not in deduplicated_job_ids
     ]
 
-    new_recommended_jobs = deduplicated_recommended_jobs[:MAX_RECOMMENDATIONS]
-    hidden_by_email_cap_jobs = deduplicated_recommended_jobs[MAX_RECOMMENDATIONS:]
+    pending_job_ids = get_pending_job_ids()
+    pending_jobs_prioritized = sum(
+        1 for job in deduplicated_recommended_jobs if job.id in pending_job_ids
+    )
+
+    delivery_candidates = prioritize_pending_jobs(
+        deduplicated_recommended_jobs,
+        pending_job_ids,
+    )
+
+    new_recommended_jobs = delivery_candidates[:MAX_RECOMMENDATIONS]
+    hidden_by_email_cap_jobs = delivery_candidates[MAX_RECOMMENDATIONS:]
 
     print_source_health(health_records)
     print_summary(
@@ -592,9 +634,7 @@ def main() -> None:
         total_jobs_collected=len(all_jobs),
         recommended_jobs_before_deduplication=len(recommended_jobs),
         duplicate_recommendations_removed=len(duplicate_recommended_jobs),
-        recommendations_hidden_by_email_cap=(
-            len(deduplicated_recommended_jobs) - len(new_recommended_jobs)
-        ),
+        recommendations_hidden_by_email_cap=len(hidden_by_email_cap_jobs),
         new_recommended_jobs=new_recommended_jobs,
     )
 
@@ -612,16 +652,68 @@ def main() -> None:
         hidden_by_email_cap_jobs=hidden_by_email_cap_jobs,
     )
 
-    email_sent = send_email_report(
-        subject=f"CareerEngine Job Report: {format_subject_date()}",
-        body=email_body,
-        attachment_paths=[unsent_report_path],
+    already_delivered_today = has_successful_delivery_for_date(delivery_date)
+    email_sent = False
+    skipped_due_to_daily_delivery = False
+
+    if already_delivered_today:
+        skipped_due_to_daily_delivery = True
+        print(
+            "Email sending skipped because CareerEngine already delivered "
+            f"a report for {delivery_date} (America/New_York)."
+        )
+        save_pending_jobs(delivery_candidates)
+    else:
+        email_sent = send_email_report(
+            subject=f"CareerEngine Job Report: {format_subject_date()}",
+            body=email_body,
+            attachment_paths=[unsent_report_path],
+        )
+
+        if email_sent:
+            save_seen_jobs(new_recommended_jobs)
+            remove_pending_jobs([job.id for job in new_recommended_jobs])
+            save_pending_jobs(hidden_by_email_cap_jobs)
+
+            record_successful_delivery(
+                delivery_date=delivery_date,
+                run_id=run_id,
+                environment=environment,
+            )
+        else:
+            print("Jobs were not marked as seen because no email was sent.")
+            save_pending_jobs(delivery_candidates)
+
+    seen_jobs_after = get_seen_job_count()
+
+    record_run_audit(
+        run_id=run_id,
+        environment=environment,
+        delivery_date=delivery_date,
+        seen_jobs_before=seen_jobs_before,
+        qualified_jobs=len(recommended_jobs),
+        duplicate_jobs=len(duplicate_recommended_jobs),
+        pending_jobs_prioritized=pending_jobs_prioritized,
+        held_by_email_cap=len(hidden_by_email_cap_jobs),
+        selected_for_email=len(new_recommended_jobs),
+        email_sent=email_sent,
+        skipped_due_to_daily_delivery=skipped_due_to_daily_delivery,
+        seen_jobs_after=seen_jobs_after,
     )
 
-    if email_sent:
-        save_seen_jobs(new_recommended_jobs)
-    else:
-        print("Jobs were not marked as seen because no email was sent.")    
+    print()
+    print("DELIVERY AUDIT")
+    print("--------------")
+    print(f"Run ID: {run_id}")
+    print(f"Environment: {environment}")
+    print(f"Delivery date (New York): {delivery_date}")
+    print(f"Seen jobs before run: {seen_jobs_before}")
+    print(f"Pending jobs prioritized: {pending_jobs_prioritized}")
+    print(f"Jobs selected for email: {len(new_recommended_jobs)}")
+    print(f"Jobs held by email cap: {len(hidden_by_email_cap_jobs)}")
+    print(f"Email sent: {email_sent}")
+    print(f"Skipped due to prior daily delivery: {skipped_due_to_daily_delivery}")
+    print(f"Seen jobs after run: {seen_jobs_after}")
 
 
 if __name__ == "__main__":
