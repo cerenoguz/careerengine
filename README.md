@@ -72,6 +72,9 @@ python -m venv .venv
 source .venv/bin/activate
 
 pip install -r requirements.txt
+
+cp config/candidate_profile.example.txt config/candidate_profile.txt
+
 python -m pytest
 python -m src.main
 ```
