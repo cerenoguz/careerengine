@@ -8,7 +8,6 @@ import yaml
 
 from src.collectors.factory import collect_jobs_for_company
 from src.models import Job, SourceHealth
-from src.ranking.delivery_queue import prioritize_pending_jobs
 from src.ranking.description_similarity import compute_description_similarity
 from src.ranking.semantic_similarity import compute_semantic_similarities
 from src.ranking.match_interpretation import get_description_similarity_label, get_match_strength_label
@@ -25,7 +24,7 @@ from src.reporting.email_report import build_daily_email_report, format_subject_
 from src.reporting.email_sender import send_email_report
 from src.reporting.report_writer import save_daily_report
 from src.reporting.semantic_shadow_report import save_semantic_shadow_report
-from src.reporting.unsent_report import save_unsent_recommendations_report
+from src.reporting.additional_opportunities_report import save_additional_opportunities_report
 from src.storage.database import (
     current_new_york_date,
     filter_new_jobs,
@@ -35,15 +34,14 @@ from src.storage.database import (
     initialize_database,
     record_run_audit,
     record_successful_delivery,
-    remove_pending_jobs,
-    save_pending_jobs,
+    sync_pending_jobs,
     save_seen_jobs,
 )
 
 
 CONFIG_PATH = Path("config/companies.yaml")
 CANDIDATE_PROFILE_PATH = Path("config/candidate_profile.txt")
-UNSENT_RECOMMENDATIONS_REPORT_PATH = Path("reports/unsent_recommendations.txt")
+ADDITIONAL_OPPORTUNITIES_REPORT_PATH = Path("reports/additional_qualified_opportunities.txt")
 SEMANTIC_SHADOW_REPORT_PATH = Path("reports/semantic_shadow_report.txt")
 
 MAX_RECOMMENDATIONS = 25
@@ -444,7 +442,7 @@ def print_summary(
     print(f"Unrealistic seniority jobs removed: {unrealistic_seniority_count}")
     print(f"Recommended jobs before deduplication: {len(recommended_jobs)}")
     print(f"Duplicate recommendations removed: {duplicate_recommendations_removed}")
-    print(f"Recommendations hidden by email cap: {recommendations_hidden_by_email_cap}")
+    print(f"Additional qualified opportunities attached: {recommendations_hidden_by_email_cap}")
     print(f"New recommended jobs: {len(new_recommended_jobs)}")
 
 def print_recommended_jobs(recommended_jobs: list[Job]) -> None:
@@ -548,18 +546,6 @@ def build_duplicate_jobs_report(duplicate_jobs: list[Job]) -> str:
     return "\n".join(lines)
 
 
-def save_unsent_report(
-    *,
-    duplicate_recommended_jobs: list[Job],
-    hidden_by_email_cap_jobs: list[Job],
-) -> Path:
-    return save_unsent_recommendations_report(
-        path=UNSENT_RECOMMENDATIONS_REPORT_PATH,
-        duplicate_recommendations=duplicate_recommended_jobs,
-        hidden_by_email_cap_recommendations=hidden_by_email_cap_jobs,
-    )
-
-
 
 def get_run_context() -> tuple[str, str]:
     if os.getenv("GITHUB_ACTIONS", "").lower() == "true":
@@ -625,14 +611,12 @@ def main() -> None:
     ]
 
     pending_job_ids = get_pending_job_ids()
-    pending_jobs_prioritized = sum(
+    previously_pending_jobs_active = sum(
         1 for job in deduplicated_recommended_jobs if job.id in pending_job_ids
     )
 
-    delivery_candidates = prioritize_pending_jobs(
-        deduplicated_recommended_jobs,
-        pending_job_ids,
-    )
+    # Normal score order is preserved. Pending state never changes ranking.
+    delivery_candidates = deduplicated_recommended_jobs
 
     new_recommended_jobs = delivery_candidates[:MAX_RECOMMENDATIONS]
     hidden_by_email_cap_jobs = delivery_candidates[MAX_RECOMMENDATIONS:]
@@ -667,9 +651,9 @@ def main() -> None:
     print()
     print(f"Saved email report to: {report_path}")
 
-    unsent_report_path = save_unsent_report(
-        duplicate_recommended_jobs=duplicate_recommended_jobs,
-        hidden_by_email_cap_jobs=hidden_by_email_cap_jobs,
+    additional_opportunities_report_path = save_additional_opportunities_report(
+        path=ADDITIONAL_OPPORTUNITIES_REPORT_PATH,
+        additional_recommendations=hidden_by_email_cap_jobs,
     )
 
     already_delivered_today = has_successful_delivery_for_date(delivery_date)
@@ -682,18 +666,17 @@ def main() -> None:
             "Email sending skipped because CareerEngine already delivered "
             f"a report for {delivery_date} (America/New_York)."
         )
-        save_pending_jobs(delivery_candidates)
+        sync_pending_jobs(delivery_candidates)
     else:
         email_sent = send_email_report(
             subject=f"CareerEngine Job Report: {format_subject_date()}",
             body=email_body,
-            attachment_paths=[unsent_report_path],
+            attachment_paths=[additional_opportunities_report_path],
         )
 
         if email_sent:
             save_seen_jobs(new_recommended_jobs)
-            remove_pending_jobs([job.id for job in new_recommended_jobs])
-            save_pending_jobs(hidden_by_email_cap_jobs)
+            sync_pending_jobs(hidden_by_email_cap_jobs)
 
             record_successful_delivery(
                 delivery_date=delivery_date,
@@ -702,7 +685,7 @@ def main() -> None:
             )
         else:
             print("Jobs were not marked as seen because no email was sent.")
-            save_pending_jobs(delivery_candidates)
+            sync_pending_jobs(delivery_candidates)
 
     seen_jobs_after = get_seen_job_count()
 
@@ -713,7 +696,7 @@ def main() -> None:
         seen_jobs_before=seen_jobs_before,
         qualified_jobs=len(recommended_jobs),
         duplicate_jobs=len(duplicate_recommended_jobs),
-        pending_jobs_prioritized=pending_jobs_prioritized,
+        pending_jobs_active=previously_pending_jobs_active,
         held_by_email_cap=len(hidden_by_email_cap_jobs),
         selected_for_email=len(new_recommended_jobs),
         email_sent=email_sent,
@@ -728,7 +711,7 @@ def main() -> None:
     print(f"Environment: {environment}")
     print(f"Delivery date (New York): {delivery_date}")
     print(f"Seen jobs before run: {seen_jobs_before}")
-    print(f"Pending jobs prioritized: {pending_jobs_prioritized}")
+    print(f"Previously pending jobs still active: {previously_pending_jobs_active}")
     print(f"Jobs selected for email: {len(new_recommended_jobs)}")
     print(f"Jobs held by email cap: {len(hidden_by_email_cap_jobs)}")
     print(f"Email sent: {email_sent}")

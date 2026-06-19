@@ -64,7 +64,7 @@ jobs:
           name: careerengine-daily-report
           path: |
             reports/daily_report.txt
-            reports/unsent_recommendations.txt
+            reports/additional_qualified_opportunities.txt
             reports/semantic_shadow_report.txt
             data/careerengine.sqlite
           if-no-files-found: warn

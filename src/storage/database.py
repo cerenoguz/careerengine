@@ -26,21 +26,20 @@ def current_new_york_timestamp() -> str:
 
 def initialize_database() -> None:
     """
-    Create all persistence tables used by CareerEngine.
+    Create CareerEngine persistence tables.
 
     seen_jobs:
-        Jobs that were actually emailed to the user.
+        Jobs that appeared in a successfully delivered email body.
 
     pending_recommendations:
-        Qualified jobs that were held by the email cap or by a skipped
-        duplicate-same-day delivery. Pending jobs remain unseen and receive
-        priority in later runs.
+        Current active qualified jobs below the email's top-25 cutoff.
+        Pending state never changes a job's ranking.
 
     daily_deliveries:
-        Ensures at most one successful email delivery per New York calendar day.
+        Allows one successful email per America/New_York calendar day.
 
     run_audit:
-        Records delivery and deduplication counts for diagnostics.
+        Records delivery, deduplication, and backlog counts.
     """
     with get_connection() as connection:
         connection.execute(
@@ -113,9 +112,6 @@ def get_seen_job_count() -> int:
 
 
 def has_seen_job(job_id: str) -> bool:
-    """
-    Return True only when a job was actually emailed/shared before.
-    """
     with get_connection() as connection:
         cursor = connection.execute(
             "SELECT 1 FROM seen_jobs WHERE job_id = ? LIMIT 1;",
@@ -126,7 +122,7 @@ def has_seen_job(job_id: str) -> bool:
 
 def save_seen_job(job: Job) -> None:
     """
-    Save one successfully emailed job as seen.
+    Save one job that appeared in a successfully delivered email body.
     """
     with get_connection() as connection:
         connection.execute(
@@ -155,23 +151,20 @@ def save_seen_job(job: Job) -> None:
 
 
 def save_seen_jobs(jobs: list[Job]) -> None:
-    """
-    Save only jobs that were actually delivered by email.
-    """
     for job in jobs:
         save_seen_job(job)
 
 
 def filter_new_jobs(jobs: list[Job]) -> list[Job]:
     """
-    Return jobs that have not actually been emailed/shared before.
+    Return jobs that have not appeared in a successfully delivered email body.
     """
     return [job for job in jobs if not has_seen_job(job.id)]
 
 
 def get_pending_job_ids() -> set[str]:
     """
-    Return the IDs of qualified jobs that were held by the email cap.
+    Return the IDs currently represented in the active below-cutoff backlog.
     """
     with get_connection() as connection:
         rows = connection.execute(
@@ -181,18 +174,36 @@ def get_pending_job_ids() -> set[str]:
     return {row[0] for row in rows}
 
 
-def save_pending_jobs(jobs: list[Job]) -> None:
+def sync_pending_jobs(jobs: list[Job]) -> None:
     """
-    Upsert qualified jobs that were not delivered.
+    Synchronize the pending table with the current active below-top-25 backlog.
 
-    These jobs remain unseen and should receive priority in later runs.
+    Jobs absent from `jobs` are removed because they either:
+    - became seen in the email body,
+    - closed or disappeared from source collection, or
+    - no longer pass recommendation filters.
+
+    Pending state is storage and audit information only. It never affects rank.
     """
-    if not jobs:
-        return
-
     today = current_new_york_date()
+    job_ids = [job.id for job in jobs]
 
     with get_connection() as connection:
+        if job_ids:
+            placeholders = ", ".join("?" for _ in job_ids)
+            connection.execute(
+                f"""
+                DELETE FROM pending_recommendations
+                WHERE job_id NOT IN ({placeholders});
+                """,
+                job_ids,
+            )
+        else:
+            connection.execute("DELETE FROM pending_recommendations;")
+
+        if not jobs:
+            return
+
         connection.executemany(
             """
             INSERT INTO pending_recommendations (
@@ -233,22 +244,6 @@ def save_pending_jobs(jobs: list[Job]) -> None:
         )
 
 
-def remove_pending_jobs(job_ids: list[str]) -> None:
-    """
-    Remove jobs from the pending queue after they are successfully emailed.
-    """
-    if not job_ids:
-        return
-
-    placeholders = ", ".join("?" for _ in job_ids)
-
-    with get_connection() as connection:
-        connection.execute(
-            f"DELETE FROM pending_recommendations WHERE job_id IN ({placeholders});",
-            job_ids,
-        )
-
-
 def has_successful_delivery_for_date(delivery_date: str) -> bool:
     with get_connection() as connection:
         cursor = connection.execute(
@@ -264,11 +259,6 @@ def record_successful_delivery(
     run_id: str,
     environment: str,
 ) -> None:
-    """
-    Record a successful daily email delivery.
-
-    The delivery_date primary key allows one successful report per New York day.
-    """
     with get_connection() as connection:
         connection.execute(
             """
@@ -297,13 +287,19 @@ def record_run_audit(
     seen_jobs_before: int,
     qualified_jobs: int,
     duplicate_jobs: int,
-    pending_jobs_prioritized: int,
+    pending_jobs_active: int,
     held_by_email_cap: int,
     selected_for_email: int,
     email_sent: bool,
     skipped_due_to_daily_delivery: bool,
     seen_jobs_after: int,
 ) -> None:
+    """
+    `pending_jobs_prioritized` remains the SQLite column name for compatibility
+    with existing local and GitHub database files. It now stores the count of
+    previously pending jobs that are still active in this run; no priority is
+    applied.
+    """
     with get_connection() as connection:
         connection.execute(
             """
@@ -331,7 +327,7 @@ def record_run_audit(
                 seen_jobs_before,
                 qualified_jobs,
                 duplicate_jobs,
-                pending_jobs_prioritized,
+                pending_jobs_active,
                 held_by_email_cap,
                 selected_for_email,
                 int(email_sent),

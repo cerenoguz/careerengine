@@ -126,7 +126,7 @@ def build_daily_email_report(
 
     if recommendations_hidden_by_email_cap is not None:
         lines.append(
-            "Recommendations hidden by email cap: "
+            "Additional qualified opportunities attached: "
             f"{recommendations_hidden_by_email_cap}"
         )
 
