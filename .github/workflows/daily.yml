@@ -80,5 +80,6 @@ jobs:
             reports/daily_report.txt
             reports/additional_qualified_opportunities.txt
             reports/semantic_shadow_report.txt
+            reports/semantic_review_queue.csv
             data/careerengine.sqlite
           if-no-files-found: warn

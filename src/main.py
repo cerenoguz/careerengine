@@ -24,6 +24,7 @@ from src.reporting.email_report import build_daily_email_report, format_subject_
 from src.reporting.email_sender import send_email_report
 from src.reporting.report_writer import save_daily_report
 from src.reporting.semantic_shadow_report import save_semantic_shadow_report
+from src.reporting.semantic_review_queue import save_semantic_review_queue
 from src.reporting.additional_opportunities_report import save_additional_opportunities_report
 from src.storage.database import (
     current_new_york_date,
@@ -43,6 +44,7 @@ CONFIG_PATH = Path("config/companies.yaml")
 CANDIDATE_PROFILE_PATH = Path("config/candidate_profile.txt")
 ADDITIONAL_OPPORTUNITIES_REPORT_PATH = Path("reports/additional_qualified_opportunities.txt")
 SEMANTIC_SHADOW_REPORT_PATH = Path("reports/semantic_shadow_report.txt")
+SEMANTIC_REVIEW_QUEUE_PATH = Path("reports/semantic_review_queue.csv")
 
 MAX_RECOMMENDATIONS = 25
 DESCRIPTION_SIMILARITY_WEIGHT = 30
@@ -602,6 +604,13 @@ def main() -> None:
 
     print(f"Semantic shadow status: {semantic_shadow_status}")
     print(f"Saved semantic shadow report to: {semantic_shadow_report_path}")
+
+    semantic_review_queue_path = save_semantic_review_queue(
+        path=SEMANTIC_REVIEW_QUEUE_PATH,
+        jobs=recommended_jobs,
+        status=semantic_shadow_status,
+    )
+    print(f"Saved semantic review queue to: {semantic_review_queue_path}")
 
     deduplicated_recommended_jobs = filter_new_jobs(recommended_jobs)
     deduplicated_job_ids = {job.id for job in deduplicated_recommended_jobs}
