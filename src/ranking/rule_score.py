@@ -455,7 +455,8 @@ def classify_cs_relevance(title: str, description: str) -> tuple[str, list[str]]
 # Scoring
 # -----------------------------
 
-EARLY_CAREER_RANKING_PRIORITY_BONUS = 5
+EARLY_CAREER_RANKING_PRIORITY_BONUS = 10
+MID_LEVEL_TITLE_PENALTY = 12
 
 
 def has_explicit_early_career_title(title: str, description: str) -> bool:
@@ -553,8 +554,11 @@ def score_job(title: str, description: str, eligibility_status: str) -> tuple[fl
         and not is_internship(title, description)
         and not is_new_grad(title, description)
     ):
-        score -= 8
-        reasons.append("Mid-level title signal (-8)")
+        score -= MID_LEVEL_TITLE_PENALTY
+        reasons.append(
+            "Mid-level title signal "
+            f"(-{MID_LEVEL_TITLE_PENALTY})"
+        )
 
     for keyword, points in SENIORITY_PENALTY_KEYWORDS.items():
         if contains_phrase(text, keyword):

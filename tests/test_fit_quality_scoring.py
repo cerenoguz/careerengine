@@ -22,7 +22,7 @@ def test_level_two_roles_receive_small_fit_penalty():
     )
 
     assert score > 0
-    assert "Mid-level title signal (-8)" in reasons
+    assert "Mid-level title signal (-12)" in reasons
 
 
 def test_l2_roles_receive_small_fit_penalty():
@@ -33,7 +33,7 @@ def test_l2_roles_receive_small_fit_penalty():
     )
 
     assert score > 0
-    assert "Mid-level title signal (-8)" in reasons
+    assert "Mid-level title signal (-12)" in reasons
 
 
 def test_new_grad_role_does_not_receive_mid_level_penalty():
@@ -43,7 +43,7 @@ def test_new_grad_role_does_not_receive_mid_level_penalty():
         "likely_compatible",
     )
 
-    assert "Mid-level title signal (-8)" not in reasons
+    assert "Mid-level title signal (-12)" not in reasons
 
 
 def test_software_engineering_intern_gets_explicit_role_boost():
@@ -95,7 +95,7 @@ def test_explicit_early_career_role_receives_ranking_priority():
         "likely_compatible",
     )
 
-    assert "Early-career ranking priority (+5)" in reasons
+    assert "Early-career ranking priority (+10)" in reasons
 
 
 def test_software_engineer_i_outranks_close_level_two_role():
@@ -121,4 +121,42 @@ def test_principal_software_engineer_i_does_not_receive_early_career_priority():
         "unclear",
     )
 
-    assert "Early-career ranking priority (+5)" not in reasons
+    assert "Early-career ranking priority (+10)" not in reasons
+
+def test_internship_outranks_skill_richer_level_two_role():
+    internship_score, _ = score_job(
+        "Software Engineering Intern (Summer 2026)",
+        "Build services using Python, APIs, and cloud systems.",
+        "likely_compatible",
+    )
+
+    level_two_score, _ = score_job(
+        "Software Engineer (L2)",
+        (
+            "Build backend services using Python, Java, SQL, APIs, databases, "
+            "cloud systems, and distributed systems."
+        ),
+        "likely_compatible",
+    )
+
+    assert internship_score > level_two_score
+
+
+def test_new_grad_outranks_skill_richer_level_two_role():
+    new_grad_score, _ = score_job(
+        "New Grad Software Engineer",
+        "Build services using Python, APIs, and cloud systems.",
+        "likely_compatible",
+    )
+
+    level_two_score, _ = score_job(
+        "Software Engineer (L2)",
+        (
+            "Build backend services using Python, Java, SQL, APIs, databases, "
+            "cloud systems, and distributed systems."
+        ),
+        "likely_compatible",
+    )
+
+    assert new_grad_score > level_two_score
+
