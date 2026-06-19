@@ -1,0 +1,32 @@
+Target roles:
+- Software Engineer
+- Backend Engineer
+- Full Stack Engineer
+- Data Engineer
+- AI / ML Engineer
+- Software Engineering Intern
+- New Graduate Software Engineer
+
+Core skills:
+- Python
+- Java
+- TypeScript
+- JavaScript
+- SQL
+- REST APIs
+- PostgreSQL
+- Docker
+- Git
+- Cloud fundamentals
+- Data pipelines
+- Machine learning
+- Large language models
+
+Education:
+- Computer Science
+- Mathematics
+
+Preferences:
+- Early-career, internship, and new-graduate opportunities
+- Software engineering and technical roles
+- Roles with clear work-authorization requirements

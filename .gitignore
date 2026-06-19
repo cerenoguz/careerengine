@@ -17,3 +17,6 @@ reports/
 
 # Mac
 .DS_Store
+
+# Private local candidate configuration
+config/candidate_profile.txt
