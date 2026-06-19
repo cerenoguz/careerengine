@@ -37,13 +37,13 @@ jobs:
           path: ~/.cache/huggingface
           key: sentence-bert-${{ runner.os }}-all-minilm-l6-v2-v1
 
-      - name: Restore deduplication database cache
+      - name: Restore CareerEngine delivery-state cache
         uses: actions/cache@v4
         with:
           path: data/careerengine.sqlite
-          key: seen-jobs-${{ github.run_id }}
+          key: careerengine-state-v2-${{ github.run_id }}
           restore-keys: |
-            seen-jobs-
+            careerengine-state-v2-
 
       - name: Install dependencies
         run: |
@@ -53,6 +53,10 @@ jobs:
       - name: Run tests
         run: |
           python -m pytest
+
+      - name: Seed trusted production delivery state
+        run: |
+          python scripts/seed_trusted_delivery_state.py
 
       - name: Run CareerEngine
         run: |
