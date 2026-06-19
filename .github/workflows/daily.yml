@@ -19,6 +19,7 @@ jobs:
       CAREERENGINE_EMAIL_TO: ${{ secrets.CAREERENGINE_EMAIL_TO }}
       CAREERENGINE_EMAIL_USERNAME: ${{ secrets.CAREERENGINE_EMAIL_USERNAME }}
       CAREERENGINE_EMAIL_PASSWORD: ${{ secrets.CAREERENGINE_EMAIL_PASSWORD }}
+      CAREERENGINE_CANDIDATE_PROFILE: ${{ secrets.CAREERENGINE_CANDIDATE_PROFILE }}
       CAREERENGINE_ENABLE_SEMANTIC_SHADOW: "true"
       CAREERENGINE_SEMANTIC_BATCH_SIZE: "32"
 
@@ -53,6 +54,15 @@ jobs:
       - name: Run tests
         run: |
           python -m pytest
+
+      - name: Restore private candidate profile
+        run: |
+          if [ -z "$CAREERENGINE_CANDIDATE_PROFILE" ]; then
+            echo "::error::Missing CAREERENGINE_CANDIDATE_PROFILE GitHub Secret."
+            exit 1
+          fi
+
+          printf '%s' "$CAREERENGINE_CANDIDATE_PROFILE" > config/candidate_profile.txt
 
       - name: Seed trusted production delivery state
         run: |
