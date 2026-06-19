@@ -640,6 +640,7 @@ def main() -> None:
         duplicate_recommendations_removed=len(duplicate_recommended_jobs),
         recommendations_hidden_by_email_cap=len(hidden_by_email_cap_jobs),
         new_recommended_jobs=new_recommended_jobs,
+        rank_start=1,
     )
 
     print()
@@ -654,6 +655,7 @@ def main() -> None:
     additional_opportunities_report_path = save_additional_opportunities_report(
         path=ADDITIONAL_OPPORTUNITIES_REPORT_PATH,
         additional_recommendations=hidden_by_email_cap_jobs,
+        rank_start=len(new_recommended_jobs) + 1,
     )
 
     already_delivered_today = has_successful_delivery_for_date(delivery_date)

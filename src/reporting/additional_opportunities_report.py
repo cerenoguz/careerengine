@@ -7,6 +7,7 @@ def save_additional_opportunities_report(
     *,
     path: Path,
     additional_recommendations: list[Job],
+    rank_start: int = 26,
 ) -> Path:
     """
     Save the active qualified backlog below the email's top-25 cutoff.
@@ -27,6 +28,7 @@ def save_additional_opportunities_report(
             "They remain eligible and will be ranked again with newly found "
             "jobs in the next report."
         ),
+        "Ranks continue from the main email report; this is not a separate queue.",
         "",
         f"Count: {len(additional_recommendations)}",
         "",
@@ -37,14 +39,14 @@ def save_additional_opportunities_report(
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         return path
 
-    for index, job in enumerate(additional_recommendations, start=1):
-        lines.extend(_format_job(index, job))
+    for rank, job in enumerate(additional_recommendations, start=rank_start):
+        lines.extend(_format_job(rank, job))
 
     path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
     return path
 
 
-def _format_job(index: int, job: Job) -> list[str]:
+def _format_job(rank: int, job: Job) -> list[str]:
     opportunity_type = (
         "Internship"
         if job.is_internship
@@ -54,7 +56,7 @@ def _format_job(index: int, job: Job) -> list[str]:
     )
 
     lines = [
-        f"{index}. {job.company} — {job.title}",
+        f"#{rank}. {job.company} — {job.title}",
         f"Location: {job.location}",
         f"CareerEngine score: {job.score:.2f}",
         f"Profile wording alignment: {job.description_similarity:.3f}",

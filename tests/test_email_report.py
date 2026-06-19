@@ -71,7 +71,7 @@ def test_daily_email_report_uses_formal_company_style_without_separator_lines():
     assert "CareerEngine reviewed your configured company sources" in report
     assert "Recommended opportunities are listed below in ranked order." in report
     assert "Best of luck,\nCareerEngine" in report
-    assert "New Recommended Jobs:" in report
+    assert "Top Ranked Opportunities:" in report
 
     assert "Summary:" in report
     assert "Score Guide:" in report
@@ -92,10 +92,10 @@ def test_daily_email_report_uses_clear_recommendation_field_names():
         recommendations_hidden_by_email_cap=0,
     )
 
-    assert "1. Company 1 — Software Engineer 1" in report
+    assert "#1. Company 1 — Software Engineer 1" in report
     assert "Location: Boston, MA" in report
     assert "CareerEngine recommendation: Excellent match" in report
-    assert "Ranking points: 90.00" in report
+    assert "CareerEngine score: 90.00" in report
     assert "Profile wording alignment: 0.050" in report
     assert "Work authorization review: Likely compatible" in report
     assert "Opportunity type: General early-career review" in report
@@ -120,7 +120,7 @@ def test_daily_email_report_handles_no_new_recommendations():
         recommendations_hidden_by_email_cap=0,
     )
 
-    assert "No new recommended jobs found with the current filters." in report
+    assert "No ranked opportunities found with the current filters." in report
     assert "Best of luck,\nCareerEngine" in report
 
 
@@ -168,3 +168,17 @@ def test_daily_email_report_summarizes_source_health_section():
     assert "Sources Needing Attention:" in report
     assert "- BrokenCo: http_error (HTTP: 500, Jobs: 0)" in report
     assert "WorkingCo: success" not in report
+
+
+def test_daily_email_report_supports_global_rank_start():
+    report = build_daily_email_report(
+        health_records=[],
+        total_jobs_collected=1,
+        recommended_jobs_before_deduplication=1,
+        new_recommended_jobs=[make_job()],
+        duplicate_recommendations_removed=0,
+        recommendations_hidden_by_email_cap=0,
+        rank_start=26,
+    )
+
+    assert "#26. Company 1 — Software Engineer 1" in report

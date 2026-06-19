@@ -47,3 +47,18 @@ def test_attachment_explains_when_no_extra_jobs_exist(tmp_path):
     content = path.read_text(encoding="utf-8")
 
     assert "No additional qualified opportunities today." in content
+
+
+def test_attachment_supports_global_rank_start(tmp_path):
+    path = tmp_path / "additional.txt"
+
+    save_additional_opportunities_report(
+        path=path,
+        additional_recommendations=[make_job()],
+        rank_start=31,
+    )
+
+    content = path.read_text(encoding="utf-8")
+
+    assert "#31. Test Company — Software Engineer" in content
+    assert "CareerEngine score: 71.50" in content

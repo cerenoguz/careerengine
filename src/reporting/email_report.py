@@ -55,6 +55,7 @@ def build_daily_email_report(
     new_recommended_jobs: list[Job],
     duplicate_recommendations_removed: int | None = None,
     recommendations_hidden_by_email_cap: int | None = None,
+    rank_start: int = 1,
 ) -> str:
     """
     Build the plain-text daily email report.
@@ -130,7 +131,9 @@ def build_daily_email_report(
             f"{recommendations_hidden_by_email_cap}"
         )
 
-    lines.append(f"New recommended jobs: {len(new_recommended_jobs)}")
+    lines.append(
+        f"Top-ranked opportunities in email: {len(new_recommended_jobs)}"
+    )
     lines.append("")
 
     lines.append("Score Guide:")
@@ -176,18 +179,18 @@ def build_daily_email_report(
     lines.append("CareerEngine")
     lines.append("")
 
-    lines.append("New Recommended Jobs:")
+    lines.append("Top Ranked Opportunities:")
     lines.append("")
 
     if not new_recommended_jobs:
-        lines.append("No new recommended jobs found with the current filters.")
+        lines.append("No ranked opportunities found with the current filters.")
         return "\n".join(lines).rstrip()
 
-    for index, job in enumerate(new_recommended_jobs, start=1):
-        lines.append(f"{index}. {job.company} — {job.title}")
+    for rank, job in enumerate(new_recommended_jobs, start=rank_start):
+        lines.append(f"#{rank}. {job.company} — {job.title}")
         lines.append(f"Location: {job.location}")
         lines.append(f"CareerEngine recommendation: {get_match_strength_label(job.score)}")
-        lines.append(f"Ranking points: {job.score:.2f}")
+        lines.append(f"CareerEngine score: {job.score:.2f}")
         lines.append(
             f"Profile wording alignment: {job.description_similarity:.3f} "
             f"({get_description_similarity_label(job.description_similarity)})"
