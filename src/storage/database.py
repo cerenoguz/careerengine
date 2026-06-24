@@ -74,6 +74,15 @@ def initialize_database() -> None:
 
         connection.execute(
             """
+            CREATE TABLE IF NOT EXISTS job_discoveries (
+                job_id TEXT PRIMARY KEY,
+                first_found_date TEXT NOT NULL
+            );
+            """
+        )
+
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS daily_deliveries (
                 delivery_date TEXT PRIMARY KEY,
                 run_id TEXT NOT NULL,
@@ -336,3 +345,52 @@ def record_run_audit(
                 current_new_york_timestamp(),
             ),
         )
+
+
+def record_job_discoveries(jobs: list[Job]) -> dict[str, tuple[str, bool]]:
+    """
+    Record the first date CareerEngine observed each active qualified job.
+
+    Returns:
+        {job_id: (first_found_date, is_new_discovery)}
+    """
+    if not jobs:
+        return {}
+
+    today = current_new_york_date()
+    job_ids = [job.id for job in jobs]
+    placeholders = ", ".join("?" for _ in job_ids)
+
+    with get_connection() as connection:
+        existing_rows = connection.execute(
+            f"""
+            SELECT job_id, first_found_date
+            FROM job_discoveries
+            WHERE job_id IN ({placeholders});
+            """,
+            job_ids,
+        ).fetchall()
+
+        existing_dates = {
+            job_id: first_found_date
+            for job_id, first_found_date in existing_rows
+        }
+
+        connection.executemany(
+            """
+            INSERT OR IGNORE INTO job_discoveries (
+                job_id,
+                first_found_date
+            )
+            VALUES (?, ?);
+            """,
+            [(job.id, today) for job in jobs],
+        )
+
+    return {
+        job.id: (
+            existing_dates.get(job.id, today),
+            job.id not in existing_dates,
+        )
+        for job in jobs
+    }

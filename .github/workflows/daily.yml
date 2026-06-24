@@ -7,6 +7,10 @@ on:
     - cron: "47 6 * * *"
       timezone: "America/New_York"
 
+concurrency:
+  group: careerengine-daily-report
+  cancel-in-progress: false
+
 jobs:
   run-careerengine:
     runs-on: ubuntu-latest
@@ -42,9 +46,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: data/careerengine.sqlite
-          key: careerengine-state-v2-${{ github.run_id }}
+          key: careerengine-state-v4-${{ github.run_id }}
           restore-keys: |
-            careerengine-state-v2-
+            careerengine-state-v4-
 
       - name: Install dependencies
         run: |
@@ -64,11 +68,9 @@ jobs:
 
           printf '%s' "$CAREERENGINE_CANDIDATE_PROFILE" > config/candidate_profile.txt
 
-      - name: Seed trusted production delivery state
-        run: |
-          python scripts/seed_trusted_delivery_state.py
-
       - name: Run CareerEngine
+        env:
+          CAREERENGINE_ENABLE_SEMANTIC_SHADOW: "true"
         run: |
           python -m src.main
 

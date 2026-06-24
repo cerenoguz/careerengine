@@ -20,3 +20,6 @@ reports/
 
 # Private local candidate configuration
 config/candidate_profile.txt
+
+# Local database backups
+backups/
