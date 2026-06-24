@@ -65,7 +65,7 @@ def test_non_us_early_career_software_engineer_is_not_recommendable() -> None:
     assert is_recommendable_job(job) is False
 
 
-def test_senior_software_engineer_is_not_recommendable() -> None:
+def test_senior_title_alone_is_not_a_hard_exclusion() -> None:
     job = make_job(
         title="Senior Backend Software Engineer",
         location="New York, NY",
@@ -75,7 +75,7 @@ def test_senior_software_engineer_is_not_recommendable() -> None:
         ),
     )
 
-    assert is_recommendable_job(job) is False
+    assert is_recommendable_job(job) is True
 
 
 def test_technical_escalations_engineer_with_cs_duties_is_recommendable() -> None:
@@ -114,7 +114,7 @@ def test_marketing_role_is_not_recommendable() -> None:
     assert is_recommendable_job(job) is False
 
 
-def test_likely_incompatible_authorization_is_not_recommendable() -> None:
+def test_explicit_authorization_hard_no_is_not_recommendable() -> None:
     job = make_job(
         title="Software Engineer - Early Career",
         location="Boston, MA",
@@ -122,8 +122,10 @@ def test_likely_incompatible_authorization_is_not_recommendable() -> None:
             "Build backend services using Python, SQL, REST APIs, databases, "
             "and distributed systems."
         ),
-        eligibility_status="likely_incompatible",
     )
+
+    job.hard_no = True
+    job.evaluation_reason = "Excluded because U.S. citizenship is required."
 
     assert is_recommendable_job(job) is False
 
@@ -140,3 +142,32 @@ def test_location_filter_still_accepts_us_locations_with_state_codes():
     assert is_us_opt_location("US-CA-Menlo Park") is True
     assert is_us_opt_location("Boston, MA") is True
     assert is_us_opt_location("Remote - US") is True
+
+
+def test_l2_role_with_new_grad_description_is_not_rejected_by_title():
+    job = make_job(
+        title="Software Engineer (L2)",
+        location="Boston, MA",
+        description=(
+            "Recent graduates are encouraged to apply. "
+            "Candidates with 0-2 years of experience are welcome. "
+            "Build backend systems with Python, SQL, APIs, and databases."
+        ),
+    )
+
+    job.hard_no = False
+
+    assert is_recommendable_job(job) is True
+
+
+def test_explicit_hard_no_is_not_recommendable():
+    job = make_job(
+        title="Software Engineer",
+        location="Boston, MA",
+        description="Build backend services using Python and SQL.",
+    )
+
+    job.hard_no = True
+    job.evaluation_reason = "Excluded because U.S. citizenship is required."
+
+    assert is_recommendable_job(job) is False

@@ -62,3 +62,36 @@ def test_attachment_supports_global_rank_start(tmp_path):
 
     assert "#31. Test Company — Software Engineer" in content
     assert "CareerEngine score: 71.50" in content
+
+
+def test_attachment_shows_new_discovery_label(tmp_path):
+    job = make_job()
+    job.is_new_discovery = True
+
+    path = tmp_path / "additional.txt"
+    save_additional_opportunities_report(
+        path=path,
+        additional_recommendations=[job],
+    )
+
+    content = path.read_text(encoding="utf-8")
+
+    assert "#26. Test Company — Software Engineer [New 🚨]" in content
+
+
+def test_attachment_shows_first_found_date_for_existing_job(tmp_path):
+    job = make_job()
+    job.first_found_date = "2026-06-20"
+
+    path = tmp_path / "additional.txt"
+    save_additional_opportunities_report(
+        path=path,
+        additional_recommendations=[job],
+    )
+
+    content = path.read_text(encoding="utf-8")
+
+    assert (
+        "#26. Test Company — Software Engineer "
+        "[First found: June 20, 2026]"
+    ) in content

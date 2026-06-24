@@ -3,6 +3,7 @@ from datetime import date
 from src.models import Job, SourceHealth
 from src.reporting.email_report import (
     build_daily_email_report,
+    format_discovery_label,
     format_opportunity_type,
     format_report_date,
     format_subject_date,
@@ -10,7 +11,12 @@ from src.reporting.email_report import (
 )
 
 
-def make_job(index: int = 1) -> Job:
+def make_job(
+    index: int = 1,
+    *,
+    first_found_date: str | None = None,
+    is_new_discovery: bool = False,
+) -> Job:
     return Job(
         id=str(index),
         company=f"Company {index}",
@@ -24,6 +30,27 @@ def make_job(index: int = 1) -> Job:
         description_similarity=0.05,
         score=90.0,
         why_matched=["Strong CS/Math degree relevance (+15)", "Role match"],
+        first_found_date=first_found_date,
+        is_new_discovery=is_new_discovery,
+    )
+
+
+def build_report(
+    jobs: list[Job],
+    *,
+    health_records: list[SourceHealth] | None = None,
+    total_jobs_collected: int = 1,
+    qualified_jobs: int | None = None,
+    additional_qualified_jobs: int = 0,
+    rank_start: int = 1,
+) -> str:
+    return build_daily_email_report(
+        health_records=health_records or [],
+        total_jobs_collected=total_jobs_collected,
+        qualified_jobs=qualified_jobs if qualified_jobs is not None else len(jobs),
+        top_ranked_jobs=jobs,
+        additional_qualified_jobs=additional_qualified_jobs,
+        rank_start=rank_start,
     )
 
 
@@ -56,43 +83,53 @@ def test_format_opportunity_type():
     assert format_opportunity_type(job) == "Internship"
 
 
-def test_daily_email_report_uses_formal_company_style_without_separator_lines():
-    report = build_daily_email_report(
-        health_records=[],
-        total_jobs_collected=1,
-        recommended_jobs_before_deduplication=1,
-        new_recommended_jobs=[make_job()],
-        duplicate_recommendations_removed=0,
-        recommendations_hidden_by_email_cap=0,
+def test_format_discovery_label_marks_new_jobs():
+    job = make_job(is_new_discovery=True)
+
+    assert format_discovery_label(job) == "New 🚨"
+
+
+def test_format_discovery_label_shows_original_discovery_date():
+    job = make_job(first_found_date="2026-06-20")
+
+    assert format_discovery_label(job) == "First found: June 20, 2026"
+
+
+def test_daily_email_report_uses_live_ranking_wording():
+    report = build_report(
+        [make_job(is_new_discovery=True)],
+        qualified_jobs=40,
+        additional_qualified_jobs=15,
     )
 
     assert report.startswith("Dear Ceren,")
-    assert "Here is your CareerEngine Daily Opportunity Report for" in report
-    assert "CareerEngine reviewed your configured company sources" in report
-    assert "Recommended opportunities are listed below in ranked order." in report
+    assert "jobs it successfully observed today" in report
+    assert "25 best current matches CareerEngine found today" in report
+    assert "Active qualified opportunities ranked: 40" in report
+    assert "Additional qualified opportunities attached: 15" in report
+    assert "Recommended jobs before deduplication" not in report
+    assert "Duplicate recommendations removed" not in report
     assert "Best of luck,\nCareerEngine" in report
-    assert "Top Ranked Opportunities:" in report
 
-    assert "Summary:" in report
-    assert "Score Guide:" in report
-    assert "Description Similarity Guide:" in report
-    assert "Source Health:" in report
 
-    assert "-------" not in report
-    assert "====" not in report
+def test_daily_email_report_shows_new_discovery_label():
+    report = build_report([make_job(is_new_discovery=True)])
+
+    assert "#1. Company 1 — Software Engineer 1 [New 🚨]" in report
+
+
+def test_daily_email_report_shows_first_found_date_for_existing_job():
+    report = build_report([make_job(first_found_date="2026-06-20")])
+
+    assert (
+        "#1. Company 1 — Software Engineer 1 "
+        "[First found: June 20, 2026]"
+    ) in report
 
 
 def test_daily_email_report_uses_clear_recommendation_field_names():
-    report = build_daily_email_report(
-        health_records=[],
-        total_jobs_collected=1,
-        recommended_jobs_before_deduplication=1,
-        new_recommended_jobs=[make_job()],
-        duplicate_recommendations_removed=0,
-        recommendations_hidden_by_email_cap=0,
-    )
+    report = build_report([make_job(is_new_discovery=True)])
 
-    assert "#1. Company 1 — Software Engineer 1" in report
     assert "Location: Boston, MA" in report
     assert "CareerEngine recommendation: Excellent match" in report
     assert "CareerEngine score: 90.00" in report
@@ -103,21 +140,13 @@ def test_daily_email_report_uses_clear_recommendation_field_names():
     assert "Why CareerEngine selected this role:" in report
     assert "- Strong CS/Math degree relevance (+15)" in report
 
-    assert "Match strength:" not in report
-    assert "Description similarity:" not in report
-    assert "Eligibility:" not in report
-    assert "Internship:" not in report
-    assert "New grad:" not in report
 
-
-def test_daily_email_report_handles_no_new_recommendations():
-    report = build_daily_email_report(
-        health_records=[],
+def test_daily_email_report_handles_no_ranked_recommendations():
+    report = build_report(
+        [],
         total_jobs_collected=0,
-        recommended_jobs_before_deduplication=0,
-        new_recommended_jobs=[],
-        duplicate_recommendations_removed=0,
-        recommendations_hidden_by_email_cap=0,
+        qualified_jobs=0,
+        additional_qualified_jobs=0,
     )
 
     assert "No ranked opportunities found with the current filters." in report
@@ -125,7 +154,9 @@ def test_daily_email_report_handles_no_new_recommendations():
 
 
 def test_daily_email_report_summarizes_source_health_section():
-    report = build_daily_email_report(
+    report = build_report(
+        [make_job(is_new_discovery=True)],
+        total_jobs_collected=10,
         health_records=[
             SourceHealth(
                 company="WorkingCo",
@@ -152,33 +183,19 @@ def test_daily_email_report_summarizes_source_health_section():
                 reason="Server error.",
             ),
         ],
-        total_jobs_collected=10,
-        recommended_jobs_before_deduplication=1,
-        new_recommended_jobs=[make_job()],
-        duplicate_recommendations_removed=0,
-        recommendations_hidden_by_email_cap=0,
     )
 
-    assert "Source Health:" in report
     assert "1 successful sources omitted from detailed list." in report
     assert "1 disabled sources listed below." in report
     assert "1 sources need attention." in report
-    assert "Disabled Sources:" in report
     assert "- DisabledCo: Disabled for test." in report
-    assert "Sources Needing Attention:" in report
     assert "- BrokenCo: http_error (HTTP: 500, Jobs: 0)" in report
-    assert "WorkingCo: success" not in report
 
 
 def test_daily_email_report_supports_global_rank_start():
-    report = build_daily_email_report(
-        health_records=[],
-        total_jobs_collected=1,
-        recommended_jobs_before_deduplication=1,
-        new_recommended_jobs=[make_job()],
-        duplicate_recommendations_removed=0,
-        recommendations_hidden_by_email_cap=0,
+    report = build_report(
+        [make_job(is_new_discovery=True)],
         rank_start=26,
     )
 
-    assert "#26. Company 1 — Software Engineer 1" in report
+    assert "#26. Company 1 — Software Engineer 1 [New 🚨]" in report

@@ -14,7 +14,10 @@ def format_report_date(report_date: date | None = None) -> str:
     if report_date is None:
         report_date = date.today()
 
-    return f"{report_date.strftime('%A')} - {report_date.strftime('%B')} {report_date.day}, {report_date.year}"
+    return (
+        f"{report_date.strftime('%A')} - "
+        f"{report_date.strftime('%B')} {report_date.day}, {report_date.year}"
+    )
 
 
 def format_subject_date(report_date: date | None = None) -> str:
@@ -30,48 +33,45 @@ def format_work_authorization_signal(eligibility_status: str) -> str:
         "unclear": "Needs review",
         "likely_incompatible": "Likely incompatible",
     }
-
-    return labels.get(eligibility_status, eligibility_status.replace("_", " ").title())
+    return labels.get(
+        eligibility_status,
+        eligibility_status.replace("_", " ").title(),
+    )
 
 
 def format_opportunity_type(job: Job) -> str:
     if job.is_internship and job.is_new_grad:
         return "Internship / new-grad aligned"
-
     if job.is_internship:
         return "Internship"
-
     if job.is_new_grad:
         return "New-grad / early-career aligned"
-
     return "General early-career review"
+
+
+def format_discovery_label(job: Job) -> str:
+    if job.is_new_discovery:
+        return "New 🚨"
+
+    if job.first_found_date:
+        found_date = date.fromisoformat(job.first_found_date)
+        return (
+            f"First found: "
+            f"{found_date.strftime('%B')} {found_date.day}, {found_date.year}"
+        )
+
+    return "First found: unavailable"
 
 
 def build_daily_email_report(
     *,
     health_records: list[SourceHealth],
     total_jobs_collected: int,
-    recommended_jobs_before_deduplication: int,
-    new_recommended_jobs: list[Job],
-    duplicate_recommendations_removed: int | None = None,
-    recommendations_hidden_by_email_cap: int | None = None,
+    qualified_jobs: int,
+    top_ranked_jobs: list[Job],
+    additional_qualified_jobs: int,
     rank_start: int = 1,
 ) -> str:
-    """
-    Build the plain-text daily email report.
-
-    duplicate_recommendations_removed:
-        Jobs that passed all filters but were already sent before.
-
-    recommendations_hidden_by_email_cap:
-        Jobs that passed all filters and were not duplicates, but were not included
-        because the daily email is capped.
-    """
-    if duplicate_recommendations_removed is None:
-        duplicate_recommendations_removed = (
-            recommended_jobs_before_deduplication - len(new_recommended_jobs)
-        )
-
     successful_sources = sum(
         1 for record in health_records if record.status == "success"
     )
@@ -93,70 +93,49 @@ def build_daily_email_report(
         if record.status not in {"success", "disabled"}
     ]
 
-    lines: list[str] = []
-
-    lines.append(f"Dear {REPORT_RECIPIENT_NAME},")
-    lines.append("")
-    lines.append(
-        "Here is your CareerEngine Daily Opportunity Report for "
-        f"{format_report_date()}."
-    )
-    lines.append("")
-    lines.append(
-        "CareerEngine reviewed your configured company sources and evaluated "
-        "active roles against your background."
-    )
-    lines.append("")
-    lines.append("Recommended opportunities are listed below in ranked order.")
-    lines.append("")
-
-    lines.append("Summary:")
-    lines.append(f"Companies checked: {len(health_records)}")
-    lines.append(f"Successful sources: {successful_sources}")
-    lines.append(f"Disabled sources: {disabled_sources}")
-
-    if sources_needing_attention:
-        lines.append(f"Sources needing attention: {sources_needing_attention}")
-
-    lines.append(f"Total jobs collected: {total_jobs_collected}")
-    lines.append(
-        "Recommended jobs before deduplication: "
-        f"{recommended_jobs_before_deduplication}"
-    )
-    lines.append(f"Duplicate recommendations removed: {duplicate_recommendations_removed}")
-
-    if recommendations_hidden_by_email_cap is not None:
-        lines.append(
-            "Additional qualified opportunities attached: "
-            f"{recommendations_hidden_by_email_cap}"
-        )
-
-    lines.append(
-        f"Top-ranked opportunities in email: {len(new_recommended_jobs)}"
-    )
-    lines.append("")
-
-    lines.append("Score Guide:")
-    lines.append("70+ = excellent match")
-    lines.append("55-69 = strong match")
-    lines.append("45-54 = relevant / worth checking")
-    lines.append("Below 45 = lower-priority match")
-    lines.append("")
-
-    lines.append("Description Similarity Guide:")
-    lines.append("0.120+ = strong wording overlap")
-    lines.append("0.070-0.119 = moderate wording overlap")
-    lines.append("0.040-0.069 = low wording overlap")
-    lines.append("Below 0.040 = very low wording overlap")
-    lines.append("")
-
-    lines.append("Source Health:")
-    lines.append(
-        f"{successful_sources} successful sources omitted from detailed list."
-    )
-    lines.append(f"{disabled_sources} disabled sources listed below.")
-    lines.append(f"{sources_needing_attention} sources need attention.")
-    lines.append("")
+    lines = [
+        f"Dear {REPORT_RECIPIENT_NAME},",
+        "",
+        (
+            "Here is your CareerEngine Daily Opportunity Report for "
+            f"{format_report_date()}."
+        ),
+        "",
+        (
+            "CareerEngine reviewed the jobs it successfully observed today, "
+            "filtered out clearly unsuitable roles, and ranked the remaining "
+            "qualified opportunities for your profile."
+        ),
+        "",
+        "The jobs below are the 25 best current matches CareerEngine found today.",
+        "",
+        "Summary:",
+        f"Companies checked: {len(health_records)}",
+        f"Successful sources: {successful_sources}",
+        f"Disabled sources: {disabled_sources}",
+        f"Total jobs collected: {total_jobs_collected}",
+        f"Active qualified opportunities ranked: {qualified_jobs}",
+        f"Additional qualified opportunities attached: {additional_qualified_jobs}",
+        f"Top-ranked opportunities in email: {len(top_ranked_jobs)}",
+        "",
+        "Score Guide:",
+        "70+ = excellent match",
+        "55-69 = strong match",
+        "45-54 = relevant / worth checking",
+        "Below 45 = lower-priority match",
+        "",
+        "Description Similarity Guide:",
+        "0.120+ = strong wording overlap",
+        "0.070-0.119 = moderate wording overlap",
+        "0.040-0.069 = low wording overlap",
+        "Below 0.040 = very low wording overlap",
+        "",
+        "Source Health:",
+        f"{successful_sources} successful sources omitted from detailed list.",
+        f"{disabled_sources} disabled sources listed below.",
+        f"{sources_needing_attention} sources need attention.",
+        "",
+    ]
 
     if disabled_records:
         lines.append("Disabled Sources:")
@@ -175,22 +154,32 @@ def build_daily_email_report(
                 lines.append(f"  Reason: {record.reason}")
         lines.append("")
 
-    lines.append("Best of luck,")
-    lines.append("CareerEngine")
-    lines.append("")
+    lines.extend([
+        "Best of luck,",
+        "CareerEngine",
+        "",
+        "Top Ranked Opportunities:",
+        "",
+    ])
 
-    lines.append("Top Ranked Opportunities:")
-    lines.append("")
-
-    if not new_recommended_jobs:
+    if not top_ranked_jobs:
         lines.append("No ranked opportunities found with the current filters.")
         return "\n".join(lines).rstrip()
 
-    for rank, job in enumerate(new_recommended_jobs, start=rank_start):
-        lines.append(f"#{rank}. {job.company} — {job.title}")
+    for rank, job in enumerate(top_ranked_jobs, start=rank_start):
+        lines.append(
+            f"#{rank}. {job.company} — {job.title} "
+            f"[{format_discovery_label(job)}]"
+        )
         lines.append(f"Location: {job.location}")
-        lines.append(f"CareerEngine recommendation: {get_match_strength_label(job.score)}")
+        lines.append(
+            f"CareerEngine recommendation: {get_match_strength_label(job.score)}"
+        )
         lines.append(f"CareerEngine score: {job.score:.2f}")
+        lines.append(
+            f"AI profile fit: {job.profile_fit_score:.1f} / 100 "
+            f"— {job.profile_fit_band.replace('_', ' ').title()}"
+        )
         lines.append(
             f"Profile wording alignment: {job.description_similarity:.3f} "
             f"({get_description_similarity_label(job.description_similarity)})"

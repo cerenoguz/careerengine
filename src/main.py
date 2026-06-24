@@ -10,12 +10,17 @@ from src.collectors.factory import collect_jobs_for_company
 from src.models import Job, SourceHealth
 from src.ranking.description_similarity import compute_description_similarity
 from src.ranking.semantic_similarity import compute_semantic_similarities
+from src.ranking.profile_fit import (
+    calculate_profile_fit_score,
+    profile_fit_ranking_adjustment,
+)
 from src.ranking.match_interpretation import get_description_similarity_label, get_match_strength_label
 from src.ranking.opt_signals import classify_eligibility
+from src.ranking.structured_evaluator import evaluate_job_description
 from src.ranking.rule_score import (
     classify_cs_relevance,
-    has_unrealistic_seniority,
     is_excluded_role,
+    has_senior_title_blocker,
     is_internship,
     is_new_grad,
     score_job,
@@ -28,15 +33,11 @@ from src.reporting.semantic_review_queue import save_semantic_review_queue
 from src.reporting.additional_opportunities_report import save_additional_opportunities_report
 from src.storage.database import (
     current_new_york_date,
-    filter_new_jobs,
-    get_pending_job_ids,
-    get_seen_job_count,
     has_successful_delivery_for_date,
     initialize_database,
+    record_job_discoveries,
     record_run_audit,
     record_successful_delivery,
-    sync_pending_jobs,
-    save_seen_jobs,
 )
 
 
@@ -267,13 +268,10 @@ def is_recommendable_job(job: Job) -> bool:
     if job.score <= 0:
         return False
 
-    if job.eligibility_status == "likely_incompatible":
+    if job.hard_no:
         return False
 
     if not is_us_opt_location(job.location):
-        return False
-
-    if has_unrealistic_seniority(job.title, job.description):
         return False
 
     cs_relevance_status, _ = classify_cs_relevance(job.title, job.description)
@@ -293,14 +291,11 @@ def get_rejection_reasons(job: Job) -> list[str]:
     if job.score <= 0:
         rejection_reasons.append("score is not positive")
 
-    if job.eligibility_status == "likely_incompatible":
-        rejection_reasons.append("likely work authorization incompatible")
+    if job.hard_no:
+        rejection_reasons.append(job.evaluation_reason or "explicit hard requirement")
 
     if not is_us_opt_location(job.location):
         rejection_reasons.append("location is not clearly U.S./OPT-compatible")
-
-    if has_unrealistic_seniority(job.title, job.description):
-        rejection_reasons.append("unrealistic seniority for new-grad/early-career")
 
     cs_relevance_status, _ = classify_cs_relevance(job.title, job.description)
     if cs_relevance_status not in RECOMMENDABLE_CS_STATUSES:
@@ -356,17 +351,74 @@ def enrich_jobs(jobs: list[Job], candidate_profile: str) -> None:
     """
     for job in jobs:
         job_text = f"{job.title} {job.description}"
+        evaluation = evaluate_job_description(job.title, job.description)
 
-        eligibility_status, _positive_signals, _negative_signals = classify_eligibility(job_text)
-        job.eligibility_status = eligibility_status
+        job.hard_no = evaluation.hard_no
+        job.required_years_min = evaluation.required_years_min
+        job.required_years_max = evaluation.required_years_max
+        job.years_requirement_type = evaluation.years_requirement_type
+        job.new_grad_signal = evaluation.new_grad_signal
+        job.internship_signal = evaluation.internship_signal
+        job.citizenship_required = evaluation.citizenship_required
+        job.permanent_resident_required = evaluation.permanent_resident_required
+        job.clearance_required = evaluation.clearance_required
+        job.export_control_restriction = evaluation.export_control_restriction
+        job.sponsorship_language = evaluation.sponsorship_language
+        job.experience_fit = evaluation.experience_fit
+        job.evaluation_reason = evaluation.reason
+        job.evaluation_evidence = evaluation.evidence
+        job.evaluation_confidence = evaluation.confidence
 
-        job.is_internship = is_internship(job.title, job.description)
-        job.is_new_grad = is_new_grad(job.title, job.description)
+        legacy_status, _positive_signals, _negative_signals = classify_eligibility(job_text)
+
+        if evaluation.hard_no:
+            job.eligibility_status = "likely_incompatible"
+        elif evaluation.sponsorship_language == "available":
+            job.eligibility_status = "likely_compatible"
+        elif (
+            legacy_status == "likely_compatible"
+            and evaluation.sponsorship_language != "unavailable"
+        ):
+            job.eligibility_status = "likely_compatible"
+        else:
+            job.eligibility_status = "unclear"
+
+        title_is_internship = is_internship(job.title, job.description)
+        title_is_new_grad = is_new_grad(job.title, job.description)
+
+        job.is_internship = (
+            title_is_internship
+            or evaluation.internship_signal == "yes"
+        )
+        job.is_new_grad = (
+            title_is_new_grad
+            or evaluation.new_grad_signal == "yes"
+        )
 
         score, reasons = score_job(
             title=job.title,
             description=job.description,
             eligibility_status=job.eligibility_status,
+        )
+
+        if evaluation.internship_signal == "yes" and not title_is_internship:
+            score += 20
+            reasons.append("Description confirms internship/co-op eligibility (+20)")
+
+        if evaluation.new_grad_signal == "yes" and not title_is_new_grad:
+            score += 22
+            reasons.append("Description confirms new-grad/early-career eligibility (+22)")
+
+        if evaluation.required_years_min in {3, 4}:
+            score -= 15
+            reasons.append("3–4 years required: controlled experience-gap demotion (-15)")
+
+        if evaluation.sponsorship_language == "unavailable":
+            reasons.append("Sponsorship unavailable; not treated as an OPT hard exclusion")
+
+        reasons.append(
+            f"Experience evaluation: {evaluation.experience_fit} — "
+            f"{evaluation.reason}"
         )
 
         description_similarity = compute_description_similarity(
@@ -449,7 +501,7 @@ def print_summary(
 
 def print_recommended_jobs(recommended_jobs: list[Job]) -> None:
     print()
-    print("TOP NEW RANKED JOBS")
+    print("TOP RANKED JOBS")
     print("-------------------")
 
     if not recommended_jobs:
@@ -566,7 +618,6 @@ def main() -> None:
 
     run_id, environment = get_run_context()
     delivery_date = current_new_york_date()
-    seen_jobs_before = get_seen_job_count()
 
     company_configs = load_company_configs()
     candidate_profile = load_candidate_profile()
@@ -576,16 +627,15 @@ def main() -> None:
 
     for company_config in company_configs:
         jobs, health = collect_jobs_for_company(company_config)
-
         enrich_jobs(jobs, candidate_profile)
-
         all_jobs.extend(jobs)
         health_records.append(health)
 
     ranked_jobs = sorted(all_jobs, key=lambda job: job.score, reverse=True)
 
     recommended_jobs = [
-        job for job in ranked_jobs if is_recommendable_job(job)
+        job for job in ranked_jobs
+        if is_recommendable_job(job)
     ]
 
     semantic_scores, semantic_shadow_status = compute_semantic_similarities(
@@ -596,12 +646,56 @@ def main() -> None:
     for job, semantic_score in zip(recommended_jobs, semantic_scores):
         job.semantic_similarity = semantic_score
 
+        cs_relevance_status, _ = classify_cs_relevance(
+            job.title,
+            job.description,
+        )
+
+        profile_fit = calculate_profile_fit_score(
+            semantic_similarity=semantic_score,
+            description_similarity=job.description_similarity,
+            cs_relevance_status=cs_relevance_status,
+            is_internship=job.is_internship,
+            is_new_grad=job.is_new_grad,
+            required_years_min=job.required_years_min,
+            required_years_max=job.required_years_max,
+            years_requirement_type=job.years_requirement_type,
+            senior_title_signal=has_senior_title_blocker(job.title),
+            title_description_conflict=(
+                "Junior-friendly description overrides senior-looking title"
+                in job.evaluation_reason
+                or (
+                    job.is_new_grad
+                    and any(
+                        marker in job.title.lower()
+                        for marker in ["senior", "staff", "principal", "lead", "engineer ii", "(l2)", " l2"]
+                    )
+                )
+            ),
+        )
+
+        job.profile_fit_score = profile_fit.score
+        job.profile_fit_band = profile_fit.band
+        job.profile_fit_reasons = profile_fit.reasons
+
+        if semantic_shadow_status == "available":
+            ranking_adjustment, ranking_reason = profile_fit_ranking_adjustment(
+                job.profile_fit_score
+            )
+            job.score += ranking_adjustment
+            job.why_matched.append(ranking_reason)
+
+    if semantic_shadow_status == "available":
+        recommended_jobs.sort(
+            key=lambda job: (job.score, job.profile_fit_score),
+            reverse=True,
+        )
+
     semantic_shadow_report_path = save_semantic_shadow_report(
         path=SEMANTIC_SHADOW_REPORT_PATH,
         jobs=recommended_jobs,
         status=semantic_shadow_status,
     )
-
     print(f"Semantic shadow status: {semantic_shadow_status}")
     print(f"Saved semantic shadow report to: {semantic_shadow_report_path}")
 
@@ -612,44 +706,43 @@ def main() -> None:
     )
     print(f"Saved semantic review queue to: {semantic_review_queue_path}")
 
-    deduplicated_recommended_jobs = filter_new_jobs(recommended_jobs)
-    deduplicated_job_ids = {job.id for job in deduplicated_recommended_jobs}
+    discovery_info = record_job_discoveries(recommended_jobs)
 
-    duplicate_recommended_jobs = [
-        job for job in recommended_jobs if job.id not in deduplicated_job_ids
-    ]
+    for job in recommended_jobs:
+        first_found_date, is_new_discovery = discovery_info[job.id]
+        job.first_found_date = first_found_date
+        job.is_new_discovery = is_new_discovery
 
-    pending_job_ids = get_pending_job_ids()
-    previously_pending_jobs_active = sum(
-        1 for job in deduplicated_recommended_jobs if job.id in pending_job_ids
-    )
-
-    # Normal score order is preserved. Pending state never changes ranking.
-    delivery_candidates = deduplicated_recommended_jobs
-
-    new_recommended_jobs = delivery_candidates[:MAX_RECOMMENDATIONS]
-    hidden_by_email_cap_jobs = delivery_candidates[MAX_RECOMMENDATIONS:]
+    top_ranked_jobs = recommended_jobs[:MAX_RECOMMENDATIONS]
+    additional_ranked_jobs = recommended_jobs[MAX_RECOMMENDATIONS:]
 
     print_source_health(health_records)
-    print_summary(
-        all_jobs=all_jobs,
-        health_records=health_records,
-        recommended_jobs=recommended_jobs,
-        deduplicated_recommended_jobs=deduplicated_recommended_jobs,
-        new_recommended_jobs=new_recommended_jobs,
+    print()
+    print("SUMMARY")
+    print("-------")
+    print(f"Companies checked: {len(health_records)}")
+    print(f"Total jobs collected: {len(all_jobs)}")
+    print(f"Active qualified opportunities ranked: {len(recommended_jobs)}")
+    print(f"Top-ranked opportunities in email: {len(top_ranked_jobs)}")
+    print(
+        "Additional qualified opportunities attached: "
+        f"{len(additional_ranked_jobs)}"
     )
-    print_recommended_jobs(new_recommended_jobs)
+    print(
+        "New discoveries today: "
+        f"{sum(job.is_new_discovery for job in recommended_jobs)}"
+    )
+
+    print_recommended_jobs(top_ranked_jobs)
     print_description_similarity_debug(all_jobs)
     print_rejection_debug(ranked_jobs)
 
     email_body = build_daily_email_report(
         health_records=health_records,
         total_jobs_collected=len(all_jobs),
-        recommended_jobs_before_deduplication=len(recommended_jobs),
-        duplicate_recommendations_removed=len(duplicate_recommended_jobs),
-        recommendations_hidden_by_email_cap=len(hidden_by_email_cap_jobs),
-        new_recommended_jobs=new_recommended_jobs,
-        rank_start=1,
+        qualified_jobs=len(recommended_jobs),
+        top_ranked_jobs=top_ranked_jobs,
+        additional_qualified_jobs=len(additional_ranked_jobs),
     )
 
     print()
@@ -663,8 +756,8 @@ def main() -> None:
 
     additional_opportunities_report_path = save_additional_opportunities_report(
         path=ADDITIONAL_OPPORTUNITIES_REPORT_PATH,
-        additional_recommendations=hidden_by_email_cap_jobs,
-        rank_start=len(new_recommended_jobs) + 1,
+        additional_recommendations=additional_ranked_jobs,
+        rank_start=len(top_ranked_jobs) + 1,
     )
 
     already_delivered_today = has_successful_delivery_for_date(delivery_date)
@@ -677,7 +770,6 @@ def main() -> None:
             "Email sending skipped because CareerEngine already delivered "
             f"a report for {delivery_date} (America/New_York)."
         )
-        sync_pending_jobs(delivery_candidates)
     else:
         email_sent = send_email_report(
             subject=f"CareerEngine Job Report: {format_subject_date()}",
@@ -686,33 +778,27 @@ def main() -> None:
         )
 
         if email_sent:
-            save_seen_jobs(new_recommended_jobs)
-            sync_pending_jobs(hidden_by_email_cap_jobs)
-
             record_successful_delivery(
                 delivery_date=delivery_date,
                 run_id=run_id,
                 environment=environment,
             )
         else:
-            print("Jobs were not marked as seen because no email was sent.")
-            sync_pending_jobs(delivery_candidates)
-
-    seen_jobs_after = get_seen_job_count()
+            print("Email was not sent; no daily delivery record was created.")
 
     record_run_audit(
         run_id=run_id,
         environment=environment,
         delivery_date=delivery_date,
-        seen_jobs_before=seen_jobs_before,
+        seen_jobs_before=0,
         qualified_jobs=len(recommended_jobs),
-        duplicate_jobs=len(duplicate_recommended_jobs),
-        pending_jobs_active=previously_pending_jobs_active,
-        held_by_email_cap=len(hidden_by_email_cap_jobs),
-        selected_for_email=len(new_recommended_jobs),
+        duplicate_jobs=0,
+        pending_jobs_active=0,
+        held_by_email_cap=len(additional_ranked_jobs),
+        selected_for_email=len(top_ranked_jobs),
         email_sent=email_sent,
         skipped_due_to_daily_delivery=skipped_due_to_daily_delivery,
-        seen_jobs_after=seen_jobs_after,
+        seen_jobs_after=0,
     )
 
     print()
@@ -721,13 +807,11 @@ def main() -> None:
     print(f"Run ID: {run_id}")
     print(f"Environment: {environment}")
     print(f"Delivery date (New York): {delivery_date}")
-    print(f"Seen jobs before run: {seen_jobs_before}")
-    print(f"Previously pending jobs still active: {previously_pending_jobs_active}")
-    print(f"Jobs selected for email: {len(new_recommended_jobs)}")
-    print(f"Jobs held by email cap: {len(hidden_by_email_cap_jobs)}")
+    print(f"Jobs ranked today: {len(recommended_jobs)}")
+    print(f"Jobs in email body: {len(top_ranked_jobs)}")
+    print(f"Jobs in attachment: {len(additional_ranked_jobs)}")
     print(f"Email sent: {email_sent}")
     print(f"Skipped due to prior daily delivery: {skipped_due_to_daily_delivery}")
-    print(f"Seen jobs after run: {seen_jobs_after}")
 
 
 if __name__ == "__main__":
