@@ -2,6 +2,12 @@ name: CareerEngine Daily Job Report
 
 on:
   workflow_dispatch:
+    inputs:
+      send_email:
+        description: "Send the email report for this manual run"
+        required: true
+        default: false
+        type: boolean
   schedule:
     # Runs every morning at 6:47 AM New York time
     - cron: "47 6 * * *"
@@ -16,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      CAREERENGINE_SEND_EMAIL: ${{ secrets.CAREERENGINE_SEND_EMAIL }}
+      CAREERENGINE_SEND_EMAIL: ${{ github.event_name == 'workflow_dispatch' && inputs.send_email || secrets.CAREERENGINE_SEND_EMAIL }}
       CAREERENGINE_SMTP_HOST: ${{ secrets.CAREERENGINE_SMTP_HOST }}
       CAREERENGINE_SMTP_PORT: ${{ secrets.CAREERENGINE_SMTP_PORT }}
       CAREERENGINE_EMAIL_FROM: ${{ secrets.CAREERENGINE_EMAIL_FROM }}
