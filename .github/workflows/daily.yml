@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      CAREERENGINE_SEND_EMAIL: ${{ github.event_name == 'workflow_dispatch' && inputs.send_email || secrets.CAREERENGINE_SEND_EMAIL }}
+      CAREERENGINE_SEND_EMAIL: ${{ github.event_name == 'workflow_dispatch' && (inputs.send_email && 'true' || 'false') || secrets.CAREERENGINE_SEND_EMAIL }}
       CAREERENGINE_SMTP_HOST: ${{ secrets.CAREERENGINE_SMTP_HOST }}
       CAREERENGINE_SMTP_PORT: ${{ secrets.CAREERENGINE_SMTP_PORT }}
       CAREERENGINE_EMAIL_FROM: ${{ secrets.CAREERENGINE_EMAIL_FROM }}
