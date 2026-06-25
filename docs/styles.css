@@ -431,3 +431,41 @@ footer {
 
   .fit { margin-left: 36px; }
 }
+body {
+  background: var(--bg);
+}
+
+.metrics article,
+.flow-grid article,
+.decision-grid article,
+.architecture,
+.cta {
+  background: var(--surface);
+}
+
+.architecture-node {
+  background: var(--surface-2);
+}
+
+.button-primary {
+  color: #ffffff;
+  background: var(--accent-strong);
+}
+
+.button-primary:hover {
+  background: #9F5967;
+}
+
+.report-topbar,
+.report-footnote {
+  background: #FBE3EB;
+}
+
+.report-pill {
+  background: #FBE3EB;
+  color: #8E4E5B;
+}
+
+.fit {
+  color: #8E4E5B;
+}
