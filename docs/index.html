@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="CareerEngine is an AI-assisted job discovery and ranking pipeline built by Ceren Oguz.">
+  <title>CareerEngine | AI-Assisted Job Discovery Pipeline</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <header class="site-header">
+    <a class="brand" href="#top">CareerEngine<span>.</span></a>
+    <nav aria-label="Primary navigation">
+      <a href="#how-it-works">How it works</a>
+      <a href="#results">Results</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#stack">Stack</a>
+      <a class="nav-github" href="https://github.com/cerenoguz/careerengine" target="_blank" rel="noreferrer">View GitHub ↗</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <p class="eyebrow">AI-ASSISTED JOB DISCOVERY PIPELINE</p>
+      <h1>Turn thousands of job postings into a shortlist worth reviewing.</h1>
+      <p class="hero-copy">
+        CareerEngine collects public company-career-site postings, applies early-career eligibility checks,
+        ranks current opportunities against a candidate profile, and delivers a focused daily report.
+      </p>
+
+      <div class="hero-actions">
+        <a class="button button-primary" href="https://github.com/cerenoguz/careerengine" target="_blank" rel="noreferrer">Explore the repository ↗</a>
+        <a class="button button-secondary" href="#results">See measured results</a>
+      </div>
+
+      <p class="status">● In active development — static portfolio demo using sanitized project metrics.</p>
+    </section>
+
+    <section class="metrics" id="results" aria-label="CareerEngine results">
+      <article>
+        <strong>49</strong>
+        <span>company career sources scanned</span>
+      </article>
+      <article>
+        <strong>6,445+</strong>
+        <span>public postings processed in one run</span>
+      </article>
+      <article>
+        <strong>191</strong>
+        <span>qualified opportunities ranked</span>
+      </article>
+      <article>
+        <strong>97%</strong>
+        <span>reduction in initial screening volume</span>
+      </article>
+      <article>
+        <strong>82</strong>
+        <span>automated tests validating core behavior</span>
+      </article>
+    </section>
+
+    <section class="content-section" id="how-it-works">
+      <div class="section-label">01 / PRODUCT FLOW</div>
+      <div class="section-content">
+        <h2>A daily decision system, not another job board.</h2>
+        <p>
+          CareerEngine re-evaluates jobs observed during each scan rather than permanently hiding them after one appearance.
+          It surfaces the strongest current matches while showing which postings are newly discovered.
+        </p>
+
+        <div class="flow-grid">
+          <article>
+            <span>01</span>
+            <h3>Collect</h3>
+            <p>Retrieves public postings from Greenhouse, Ashby, Lever, and Workable sources.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>Evaluate</h3>
+            <p>Removes clear authorization and experience mismatches, then identifies early-career signals.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>Rank</h3>
+            <p>Combines explainable technical-fit signals with bounded Sentence-BERT profile alignment.</p>
+          </article>
+          <article>
+            <span>04</span>
+            <h3>Deliver</h3>
+            <p>Emails the top 25 roles and includes the remaining ranked matches in an attachment.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-section split-section">
+      <div class="section-label">02 / OUTPUT</div>
+      <div class="section-content">
+        <h2>From 6,445 postings to a usable daily shortlist.</h2>
+        <p>
+          One GitHub Actions run processed more than 6,445 postings from 49 sources, narrowed the initial screening pool
+          to 191 qualified opportunities, and prioritized the top 25 current matches.
+        </p>
+
+        <div class="report-card">
+          <div class="report-topbar">
+            <span>CareerEngine Daily Opportunity Report</span>
+            <span class="report-pill">Sanitized example</span>
+          </div>
+
+          <div class="report-summary">
+            <div><span>Sources checked</span><strong>49</strong></div>
+            <div><span>Postings collected</span><strong>6,445+</strong></div>
+            <div><span>Qualified roles</span><strong>191</strong></div>
+          </div>
+
+          <div class="report-role">
+            <span class="rank">#1</span>
+            <div>
+              <strong>Software Engineer I — Backend</strong>
+              <p>Early-career aligned · Strong technical fit · New</p>
+            </div>
+            <span class="fit">Strong fit</span>
+          </div>
+
+          <div class="report-role">
+            <span class="rank">#2</span>
+            <div>
+              <strong>Machine Learning Intern / Co-op</strong>
+              <p>Internship · Python / ML alignment · New</p>
+            </div>
+            <span class="fit">Strong fit</span>
+          </div>
+
+          <div class="report-role">
+            <span class="rank">#3</span>
+            <div>
+              <strong>New Grad Software Engineer — Full Stack</strong>
+              <p>New-grad aligned · Full-stack profile match · New</p>
+            </div>
+            <span class="fit">Strong fit</span>
+          </div>
+
+          <p class="report-footnote">
+            Email body: top 25 roles · Attachment: 166 additional ranked opportunities
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-section" id="architecture">
+      <div class="section-label">03 / ARCHITECTURE</div>
+      <div class="section-content">
+        <h2>Designed for explainability and operational reliability.</h2>
+
+        <div class="architecture">
+          <div class="architecture-node">
+            <p>Public career sources</p>
+            <strong>Greenhouse · Ashby · Lever · Workable</strong>
+          </div>
+          <div class="architecture-arrow">↓</div>
+          <div class="architecture-node">
+            <p>Collection + normalization</p>
+            <strong>Python collectors · structured job model</strong>
+          </div>
+          <div class="architecture-arrow">↓</div>
+          <div class="architecture-node">
+            <p>Eligibility + ranking</p>
+            <strong>Authorization checks · seniority signals · Sentence-BERT</strong>
+          </div>
+          <div class="architecture-arrow">↓</div>
+          <div class="architecture-node">
+            <p>State + reporting</p>
+            <strong>SQLite discovery tracking · email · ranked TXT attachment</strong>
+          </div>
+          <div class="architecture-arrow">↓</div>
+          <div class="architecture-node">
+            <p>Automation + validation</p>
+            <strong>GitHub Actions · source health · 82 automated tests</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-section split-section" id="stack">
+      <div class="section-label">04 / ENGINEERING DECISIONS</div>
+      <div class="section-content">
+        <h2>Hybrid ranking without an opaque black box.</h2>
+        <p>
+          Deterministic logic handles clear restrictions such as citizenship, clearance, and required experience.
+          Semantic similarity contributes a limited, inspectable signal rather than making the final decision alone.
+        </p>
+
+        <div class="decision-grid">
+          <article>
+            <h3>Explainable filtering</h3>
+            <p>Evidence-based work-authorization and seniority checks keep hard constraints explicit.</p>
+          </article>
+          <article>
+            <h3>Profile-aware ranking</h3>
+            <p>Sentence-BERT measures semantic alignment with a technical profile while rule-based scoring preserves control.</p>
+          </article>
+          <article>
+            <h3>Fresh daily ranking</h3>
+            <p>Current jobs are re-ranked every scan; first-observed dates distinguish new postings from existing matches.</p>
+          </article>
+          <article>
+            <h3>Operational visibility</h3>
+            <p>Source-health reporting makes disabled, failed, and successfully collected sources visible in every report.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-section">
+      <div class="section-label">05 / TECH STACK</div>
+      <div class="section-content">
+        <h2>Built as a production-style Python pipeline.</h2>
+        <div class="tag-list">
+          <span>Python</span>
+          <span>SQLite</span>
+          <span>GitHub Actions</span>
+          <span>Sentence-BERT</span>
+          <span>Hugging Face</span>
+          <span>Public ATS endpoints</span>
+          <span>Automated Testing</span>
+          <span>Source Health Monitoring</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta">
+      <p class="eyebrow">OPEN SOURCE PROJECT</p>
+      <h2>See the implementation, tests, and ongoing development.</h2>
+      <a class="button button-primary" href="https://github.com/cerenoguz/careerengine" target="_blank" rel="noreferrer">Open CareerEngine on GitHub ↗</a>
+    </section>
+  </main>
+
+  <footer>
+    <span>Built by Ceren Oguz</span>
+    <span>CareerEngine · 2026</span>
+  </footer>
+</body>
+</html>
