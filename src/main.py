@@ -749,6 +749,8 @@ def main() -> None:
         qualified_jobs=len(recommended_jobs),
         top_ranked_jobs=top_ranked_jobs,
         additional_qualified_jobs=len(additional_ranked_jobs),
+        newly_found_jobs=sum(job.is_new_discovery for job in recommended_jobs),
+        dashboard_url=os.getenv("CAREERENGINE_DASHBOARD_URL", ""),
     )
 
     print()
@@ -778,7 +780,7 @@ def main() -> None:
         )
     else:
         email_sent = send_email_report(
-            subject=f"CareerEngine Job Report: {format_subject_date()}",
+            subject=f"CareerEngine Job Reminder: {format_subject_date()}",
             body=email_body,
             attachment_paths=[additional_opportunities_report_path],
         )
