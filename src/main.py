@@ -31,6 +31,7 @@ from src.reporting.report_writer import save_daily_report
 from src.reporting.semantic_shadow_report import save_semantic_shadow_report
 from src.reporting.semantic_review_queue import save_semantic_review_queue
 from src.reporting.additional_opportunities_report import save_additional_opportunities_report
+from src.dashboard.supabase_sync import sync_jobs_to_supabase
 from src.storage.database import (
     current_new_york_date,
     has_successful_delivery_for_date,
@@ -712,6 +713,11 @@ def main() -> None:
         first_found_date, is_new_discovery = discovery_info[job.id]
         job.first_found_date = first_found_date
         job.is_new_discovery = is_new_discovery
+
+    try:
+        sync_jobs_to_supabase(recommended_jobs, run_date=delivery_date)
+    except Exception as exc:
+        print(f"Dashboard sync failed: {exc}")
 
     top_ranked_jobs = recommended_jobs[:MAX_RECOMMENDATIONS]
     additional_ranked_jobs = recommended_jobs[MAX_RECOMMENDATIONS:]
