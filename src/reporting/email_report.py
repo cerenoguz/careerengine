@@ -23,6 +23,17 @@ def format_subject_date(report_date: date | None = None) -> str:
     return f"{report_date.month}/{report_date.day}/{report_date.year}"
 
 
+def format_discovery_label(job: Job) -> str:
+    if getattr(job, "is_new_discovery", False):
+        return "🚨 New today"
+
+    first_found_date = getattr(job, "first_found_date", None)
+    if first_found_date:
+        return f"First found: {first_found_date}"
+
+    return "Previously discovered"
+
+
 def format_top_role_line(rank: int, job: Job) -> str:
     new_marker = " 🚨 New" if getattr(job, "is_new_discovery", False) else ""
     location = job.location or "Location not listed"
