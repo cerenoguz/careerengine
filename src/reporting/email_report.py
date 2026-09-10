@@ -46,11 +46,9 @@ def build_daily_email_report(
     health_records: list[SourceHealth],
     total_jobs_collected: int,
     qualified_jobs: int,
-    top_ranked_jobs: list[Job],
+    newly_discovered_jobs: list[Job],
     additional_qualified_jobs: int,
-    newly_found_jobs: int,
     dashboard_url: str,
-    top_roles_to_show: int = 5,
 ) -> str:
     successful_sources = sum(
         1 for record in health_records if record.status == "success"
@@ -74,16 +72,16 @@ def build_daily_email_report(
         "Open dashboard:",
         dashboard_line,
         "",
-        f"Newly found jobs today: {newly_found_jobs}",
+        f"Newly found jobs today: {len(newly_discovered_jobs)}",
         "",
-        "Top 5 ranked roles:",
+        "Newly added jobs:",
     ]
 
-    if top_ranked_jobs:
-        for rank, job in enumerate(top_ranked_jobs[:top_roles_to_show], start=1):
+    if newly_discovered_jobs:
+        for rank, job in enumerate(newly_discovered_jobs, start=1):
             lines.append(format_top_role_line(rank, job))
     else:
-        lines.append("No ranked opportunities found with the current filters.")
+        lines.append("No new job postings found today.")
 
     lines.extend(
         [

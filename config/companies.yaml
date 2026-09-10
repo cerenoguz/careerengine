@@ -100,42 +100,18 @@ companies:
   max_requests_per_run: 1
   notes: Validated Ashby source from source validation report.
 - name: Netflix
-  source_type: greenhouse
-  source_url: https://boards-api.greenhouse.io/v1/boards/netflix/jobs
-  collection_status: disabled
-  compliance_status: api_preferred
-  max_requests_per_run: 1
-- name: Sentra
-  source_type: ashby
-  source_url: https://api.ashbyhq.com/posting-api/job-board/sentra
-  notes: Ashby source added for new-grad and early-career software roles.
+  source_type: netflix
+  source_url: https://explore.jobs.netflix.net/api/apply/v2/jobs/?domain=netflix.com&Teams=Engineering&start=0&num=25
   collection_status: enabled
   compliance_status: api_preferred
-  max_requests_per_run: 1
-- name: N1
-  source_type: ashby
-  source_url: https://api.ashbyhq.com/posting-api/job-board/n1
-  notes: Ashby source added for new-grad and early-career software roles.
-  collection_status: enabled
-  compliance_status: api_preferred
-  max_requests_per_run: 1
-- name: PointOne
-  source_type: ashby
-  source_url: https://api.ashbyhq.com/posting-api/job-board/PointOne
-  notes: Ashby source added for new-grad and early-career software roles.
-  collection_status: enabled
-  compliance_status: api_preferred
-  max_requests_per_run: 1
+  max_requests_per_run: 26
+  notes: Greenhouse board returns 404 (Netflix no longer publishes there). Netflix's
+    actual careers site runs on Eightfold; explore.jobs.netflix.net/robots.txt
+    explicitly allows /api/apply. Scoped to the Engineering team. One list request
+    plus up to 25 per-job detail requests to fetch full descriptions.
 - name: Benchling
   source_type: ashby
   source_url: https://api.ashbyhq.com/posting-api/job-board/benchling
-  notes: Ashby source added for new-grad and early-career software roles.
-  collection_status: enabled
-  compliance_status: api_preferred
-  max_requests_per_run: 1
-- name: 8VC
-  source_type: ashby
-  source_url: https://api.ashbyhq.com/posting-api/job-board/8vc
   notes: Ashby source added for new-grad and early-career software roles.
   collection_status: enabled
   compliance_status: api_preferred
@@ -150,27 +126,6 @@ companies:
 - name: Replit
   source_type: ashby
   source_url: https://api.ashbyhq.com/posting-api/job-board/replit
-  notes: Ashby source added for new-grad and early-career software roles.
-  collection_status: enabled
-  compliance_status: api_preferred
-  max_requests_per_run: 1
-- name: Continue
-  source_type: ashby
-  source_url: https://api.ashbyhq.com/posting-api/job-board/continue
-  notes: Ashby source added for new-grad and early-career software roles.
-  collection_status: enabled
-  compliance_status: api_preferred
-  max_requests_per_run: 1
-- name: Realm
-  source_type: ashby
-  source_url: https://api.ashbyhq.com/posting-api/job-board/realmalliance
-  notes: Ashby source added for new-grad and early-career software roles.
-  collection_status: enabled
-  compliance_status: api_preferred
-  max_requests_per_run: 1
-- name: Confido
-  source_type: ashby
-  source_url: https://api.ashbyhq.com/posting-api/job-board/confido
   notes: Ashby source added for new-grad and early-career software roles.
   collection_status: enabled
   compliance_status: api_preferred
@@ -321,3 +276,256 @@ companies:
   collection_status: enabled
   compliance_status: api_preferred
   max_requests_per_run: 1
+- name: Coinbase
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/coinbase/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Added for visa sponsorship track record. Verified Greenhouse source.
+- name: Databricks
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/databricks/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Added for visa sponsorship track record. Verified Greenhouse source.
+- name: Block
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/block/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Added for visa sponsorship track record. Verified Greenhouse source.
+- name: Instacart
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/instacart/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Added for visa sponsorship track record. Verified Greenhouse source.
+- name: Reddit
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/reddit/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Added for visa sponsorship track record. Verified Greenhouse source.
+- name: Roblox
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/roblox/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Added for visa sponsorship track record. Verified Greenhouse source.
+- name: SoFi
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/sofi/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Added for visa sponsorship track record. Verified Greenhouse source.
+- name: Okta
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/okta/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Added for visa sponsorship track record. Verified Greenhouse source.
+- name: Toast
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/toast/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Added for visa sponsorship track record. Verified Greenhouse source.
+- name: Affirm
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/affirm/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Added for visa sponsorship track record. Verified Greenhouse source.
+- name: Jane Street
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/janestreet/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Added for visa sponsorship track record. Verified Greenhouse source.
+- name: Oscar Health
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/oscar/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Less obvious pick with a solid visa sponsorship track record. Verified
+    Greenhouse source.
+- name: Maven Clinic
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/mavenclinic/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Less obvious pick with a solid visa sponsorship track record. Verified
+    Greenhouse source.
+- name: Hopper
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/hopper
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Less obvious pick with a solid visa sponsorship track record. Verified
+    Ashby source.
+- name: Amazon
+  source_type: amazon
+  source_url: https://www.amazon.jobs/en/search.json?result_limit=100&sort=recent&category%5B%5D=software-development
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Public JSON endpoint used by amazon.jobs itself; not blocked by robots.txt.
+    Scoped to the software-development category and sorted by most recent.
+- name: Udemy
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/udemy/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar edtech pick with a solid visa sponsorship track record.
+    Verified Greenhouse source.
+- name: Fivetran
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/fivetran/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar data-infrastructure pick with a solid visa sponsorship
+    track record. Verified Greenhouse source.
+- name: project44
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/project44/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar supply-chain/logistics-tech pick with a solid visa
+    sponsorship track record. Verified Greenhouse source.
+- name: FourKites
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/fourkites/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar supply-chain/logistics-tech pick with a solid visa
+    sponsorship track record. Verified Greenhouse source.
+- name: Everlaw
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/everlaw/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar legal-tech pick with a solid visa sponsorship track
+    record. Verified Greenhouse source.
+- name: Justworks
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/justworks/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar HR-tech pick with a solid visa sponsorship track record.
+    Verified Greenhouse source.
+- name: Nuro
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/nuro/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar robotics/autonomous-vehicle pick with a solid visa
+    sponsorship track record. Verified Greenhouse source.
+- name: Formlabs
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/formlabs/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar hardware/robotics pick with a solid visa sponsorship
+    track record. Verified Greenhouse source.
+- name: Ginkgo Bioworks
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/ginkgobioworks/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar biotech pick with a solid visa sponsorship track record.
+    Verified Greenhouse source.
+- name: Epic Games
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/epicgames/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar gaming pick with a solid visa sponsorship track record.
+    Verified Greenhouse source.
+- name: Riot Games
+  source_type: greenhouse
+  source_url: https://boards-api.greenhouse.io/v1/boards/riotgames/jobs
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar gaming pick with a solid visa sponsorship track record.
+    Verified Greenhouse source.
+- name: Arcadia
+  source_type: lever
+  source_url: https://api.lever.co/v0/postings/arcadia
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar climate/energy-tech pick with a solid visa sponsorship
+    track record. Verified Lever source.
+- name: Lemonade
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/lemonade
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar insurtech pick with a solid visa sponsorship track
+    record. Verified Ashby source.
+- name: Vanta
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/vanta
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar security/compliance-tech pick with a solid visa
+    sponsorship track record. Verified Ashby source.
+- name: Drata
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/drata
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar security/compliance-tech pick with a solid visa
+    sponsorship track record. Verified Ashby source.
+- name: Aurora Solar
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/aurorasolar
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar climate/energy-tech pick with a solid visa sponsorship
+    track record. Verified Ashby source.
+- name: Airbyte
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/airbyte
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar data-infrastructure pick with a solid visa sponsorship
+    track record. Verified Ashby source.
+- name: Hex
+  source_type: ashby
+  source_url: https://api.ashbyhq.com/posting-api/job-board/hex
+  collection_status: enabled
+  compliance_status: api_preferred
+  max_requests_per_run: 1
+  notes: Under-the-radar data-infrastructure pick with a solid visa sponsorship
+    track record. Verified Ashby source.

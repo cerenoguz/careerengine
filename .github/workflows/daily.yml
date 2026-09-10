@@ -9,9 +9,9 @@ on:
         default: false
         type: boolean
   schedule:
-    # Runs every morning at 6:47 AM New York time
-    - cron: "47 6 * * *"
-      timezone: "America/New_York"
+    # Runs every day at 1:00 PM Turkey time
+    - cron: "0 13 * * *"
+      timezone: "Europe/Istanbul"
 
 concurrency:
   group: careerengine-daily-report

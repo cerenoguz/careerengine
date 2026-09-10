@@ -721,6 +721,7 @@ def main() -> None:
 
     top_ranked_jobs = recommended_jobs[:MAX_RECOMMENDATIONS]
     additional_ranked_jobs = recommended_jobs[MAX_RECOMMENDATIONS:]
+    newly_discovered_jobs = [job for job in recommended_jobs if job.is_new_discovery]
 
     print_source_health(health_records)
     print()
@@ -747,9 +748,8 @@ def main() -> None:
         health_records=health_records,
         total_jobs_collected=len(all_jobs),
         qualified_jobs=len(recommended_jobs),
-        top_ranked_jobs=top_ranked_jobs,
+        newly_discovered_jobs=newly_discovered_jobs,
         additional_qualified_jobs=len(additional_ranked_jobs),
-        newly_found_jobs=sum(job.is_new_discovery for job in recommended_jobs),
         dashboard_url=os.getenv("CAREERENGINE_DASHBOARD_URL", ""),
     )
 
