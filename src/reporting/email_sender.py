@@ -8,6 +8,7 @@ def send_email_report(
     subject: str,
     body: str,
     attachment_paths: list[Path] | None = None,
+    html_body: str | None = None,
 ) -> bool:
     """
     Send the CareerEngine report by email.
@@ -42,6 +43,9 @@ def send_email_report(
     message["From"] = email_from
     message["To"] = email_to
     message.set_content(body)
+
+    if html_body:
+        message.add_alternative(html_body, subtype="html")
 
     for attachment_path in attachment_paths or []:
         if not attachment_path.exists():

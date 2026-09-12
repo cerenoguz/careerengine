@@ -1,6 +1,6 @@
 # CareerEngine
 
-> **Status:** In active development — V2.1, June 2026
+> **Status:** In active development — V2.2, September 2026
 
 CareerEngine is a job-discovery and ranking pipeline built for the developer to help with early-career software engineering search.
 
@@ -8,35 +8,29 @@ It collects active roles from validated public job sources, evaluates them again
 
 ## What it does
 
-* Collects active roles from public ATS platforms including Greenhouse, Ashby, Lever, and Workable.
+* Collects active roles from public ATS platforms including Greenhouse, Ashby, Lever, and Workable, plus verified public JSON endpoints for select large employers outside those platforms (Amazon, Netflix).
 * Normalizes job listings into a shared format.
 * Filters for software engineering, backend, full-stack, data, AI/ML, developer tools, infrastructure, healthtech, and fintech-related roles.
 * Scores roles using title fit, technical overlap, degree relevance, seniority signals, work-authorization wording, and profile-to-description similarity.
 * Prioritizes explicit internships, new-grad roles, SWE I, and other early-career opportunities.
 * Prevents senior, staff, principal, lead, manager, and director roles from receiving early-career bonuses.
-* Sends the top-ranked opportunities in a daily email report.
-* Generates a ranked TXT attachment for additional qualified opportunities below the email cutoff.
-* Tracks jobs shown in the main email body to prevent repeat recommendations.
+* Sends newly discovered opportunities in a daily email report.
+* Generates a ranked TXT attachment for additional qualified opportunities below the top-ranked cutoff.
+* Tracks previously seen jobs to identify newly discovered opportunities for the email body.
 * Records source health, delivery state, and recommendation diagnostics.
 
 ## Ranking flow
 
-CareerEngine builds one shared candidate pool each day:
+CareerEngine builds one shared ranked candidate pool each day from all active qualified jobs.
+
+The pool is split into:
 
 ```text
-Active qualified jobs
-- roles already shown in an email body
-= ranked candidate pool
-```
-
-The ranked list is split into:
-
-```text
-#1–#25   Daily email body
+#1–#25   Top-ranked cutoff
 #26–#N   Additional qualified opportunities attachment
 ```
 
-Roles in the attachment remain eligible for future runs. They are ranked again alongside newly discovered jobs rather than being treated as permanently delivered.
+The daily email body lists jobs discovered for the first time in that run, not the top-ranked roles. Roles below the top-ranked cutoff remain eligible for future runs — they are ranked again alongside newly discovered jobs rather than being treated as permanently delivered.
 
 ## Ranking signals
 
@@ -57,7 +51,7 @@ Sentence-BERT semantic similarity is currently running in shadow mode. It is cal
 * Python
 * SQLite
 * GitHub Actions
-* Greenhouse, Ashby, Lever, and Workable public job sources
+* Greenhouse, Ashby, Lever, and Workable public job sources, plus verified public JSON endpoints for select large employers (Amazon, Netflix)
 * Sentence-Transformers with `all-MiniLM-L6-v2`
 * pytest
 * SMTP email delivery
@@ -119,14 +113,15 @@ Implemented:
 * Ranked additional-opportunities attachment
 * Seen-job tracking and delivery auditing
 * Sentence-BERT semantic matching in shadow mode
-* GitHub Actions automation
-* Test coverage for ranking, delivery, reports, and collectors
+* GitHub Actions automation, scheduled daily
+* Verified public JSON collectors for select large employers outside the standard ATS platforms (Amazon, Netflix)
+* Test coverage for ranking, delivery, reports, and collectors (92 automated tests)
 
 In progress:
 
 * Production validation of the revised backlog behavior
 * Controlled rollout of semantic ranking
-* Compliant collectors for large companies with custom careers sites
+* Compliant collectors for additional large companies with custom careers sites
 
 ## Notes for contributors
 

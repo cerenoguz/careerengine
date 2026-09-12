@@ -25,7 +25,11 @@ from src.ranking.rule_score import (
     is_new_grad,
     score_job,
 )
-from src.reporting.email_report import build_daily_email_report, format_subject_date
+from src.reporting.email_report import (
+    build_daily_email_html,
+    build_daily_email_report,
+    format_subject_date,
+)
 from src.reporting.email_sender import send_email_report
 from src.reporting.report_writer import save_daily_report
 from src.reporting.semantic_shadow_report import save_semantic_shadow_report
@@ -744,7 +748,7 @@ def main() -> None:
     print_description_similarity_debug(all_jobs)
     print_rejection_debug(ranked_jobs)
 
-    email_body = build_daily_email_report(
+    email_kwargs = dict(
         health_records=health_records,
         total_jobs_collected=len(all_jobs),
         qualified_jobs=len(recommended_jobs),
@@ -752,6 +756,8 @@ def main() -> None:
         additional_qualified_jobs=len(additional_ranked_jobs),
         dashboard_url=os.getenv("CAREERENGINE_DASHBOARD_URL", ""),
     )
+    email_body = build_daily_email_report(**email_kwargs)
+    email_html = build_daily_email_html(**email_kwargs)
 
     print()
     print("EMAIL PREVIEW")
@@ -783,6 +789,7 @@ def main() -> None:
             subject=f"CareerEngine Job Reminder: {format_subject_date()}",
             body=email_body,
             attachment_paths=[additional_opportunities_report_path],
+            html_body=email_html,
         )
 
         if email_sent:
