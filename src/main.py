@@ -252,12 +252,20 @@ def is_us_opt_location(location: str) -> bool:
     return False
 
 
+EXCLUDED_GRAD_YEAR_PATTERN = re.compile(r"\b2027\b")
+
+
+def targets_excluded_grad_year(title: str) -> bool:
+    return bool(EXCLUDED_GRAD_YEAR_PATTERN.search(title))
+
+
 def is_recommendable_job(job: Job) -> bool:
     """
     Decide whether a job should appear in the final recommendation list.
 
     A job must:
     - not be in an excluded role category based on title
+    - not be an internship, and not targeting the excluded grad year (2027)
     - have a positive score
     - not be likely incompatible with OPT/work authorization
     - be clearly or defensibly related to CS/Math based on title + description
@@ -268,6 +276,12 @@ def is_recommendable_job(job: Job) -> bool:
     # The description may mention sales/marketing/support as partner teams,
     # but that does not make the role itself a sales/marketing/support job.
     if is_excluded_role(job.title, ""):
+        return False
+
+    if job.is_internship or is_internship(job.title, ""):
+        return False
+
+    if targets_excluded_grad_year(job.title):
         return False
 
     if job.score <= 0:
@@ -292,6 +306,12 @@ def get_rejection_reasons(job: Job) -> list[str]:
 
     if is_excluded_role(job.title, ""):
         rejection_reasons.append("excluded role category based on title")
+
+    if job.is_internship or is_internship(job.title, ""):
+        rejection_reasons.append("internship roles are excluded")
+
+    if targets_excluded_grad_year(job.title):
+        rejection_reasons.append("targets excluded grad year (2027)")
 
     if job.score <= 0:
         rejection_reasons.append("score is not positive")

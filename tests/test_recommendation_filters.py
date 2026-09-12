@@ -171,3 +171,45 @@ def test_explicit_hard_no_is_not_recommendable():
     job.evaluation_reason = "Excluded because U.S. citizenship is required."
 
     assert is_recommendable_job(job) is False
+
+
+def test_internship_role_is_not_recommendable():
+    job = make_job(
+        title="Software Engineering Intern",
+        location="Boston, MA",
+        description="Build backend services using Python, SQL, and REST APIs.",
+    )
+
+    assert is_recommendable_job(job) is False
+
+
+def test_job_flagged_as_internship_by_description_is_not_recommendable():
+    job = make_job(
+        title="Software Engineer",
+        location="Boston, MA",
+        description="This is a co-op position for current students.",
+    )
+
+    job.is_internship = True
+
+    assert is_recommendable_job(job) is False
+
+
+def test_2027_grad_year_role_is_not_recommendable():
+    job = make_job(
+        title="Software Engineer, New Grad (2027)",
+        location="Boston, MA",
+        description="Build backend services using Python, SQL, and REST APIs.",
+    )
+
+    assert is_recommendable_job(job) is False
+
+
+def test_2026_grad_year_role_is_still_recommendable():
+    job = make_job(
+        title="Software Engineer, New Grad (2026)",
+        location="Boston, MA",
+        description="Build backend services using Python, SQL, and REST APIs.",
+    )
+
+    assert is_recommendable_job(job) is True
