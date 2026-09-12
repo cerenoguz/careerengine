@@ -17,6 +17,7 @@ _TILE_BG = "#FAFAFB"
 _FONT_STACK = "'Segoe UI', Helvetica, Arial, sans-serif"
 _MONO_STACK = "'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace"
 
+EMAIL_JOB_LIST_LIMIT = 5
 
 REPORT_RECIPIENT_NAME = "Ceren"
 
@@ -79,6 +80,9 @@ def build_daily_email_report(
         else "Dashboard URL not configured. Set CAREERENGINE_DASHBOARD_URL."
     )
 
+    jobs_to_list = newly_discovered_jobs[:EMAIL_JOB_LIST_LIMIT]
+    remaining_count = len(newly_discovered_jobs) - len(jobs_to_list)
+
     lines = [
         f"Dear {REPORT_RECIPIENT_NAME},",
         "",
@@ -89,12 +93,14 @@ def build_daily_email_report(
         "",
         f"Newly found jobs today: {len(newly_discovered_jobs)}",
         "",
-        "Newly added jobs:",
+        "Your top matches among today's new jobs:",
     ]
 
-    if newly_discovered_jobs:
-        for rank, job in enumerate(newly_discovered_jobs, start=1):
+    if jobs_to_list:
+        for rank, job in enumerate(jobs_to_list, start=1):
             lines.append(format_top_role_line(rank, job))
+        if remaining_count > 0:
+            lines.append(f"...and {remaining_count} more. See the dashboard for the full list.")
     else:
         lines.append("No new job postings found today.")
 
@@ -176,16 +182,30 @@ def build_daily_email_html(
     dashboard_href = html.escape(dashboard_url or "#", quote=True)
     dashboard_configured = bool(dashboard_url)
 
-    if newly_discovered_jobs:
+    jobs_to_list = newly_discovered_jobs[:EMAIL_JOB_LIST_LIMIT]
+    remaining_count = len(newly_discovered_jobs) - len(jobs_to_list)
+
+    if jobs_to_list:
         job_rows = "".join(
-            _html_job_row(job, is_last=(index == len(newly_discovered_jobs) - 1))
-            for index, job in enumerate(newly_discovered_jobs)
+            _html_job_row(job, is_last=(index == len(jobs_to_list) - 1))
+            for index, job in enumerate(jobs_to_list)
+        )
+        more_link = (
+            f"""
+          <p style="font-family:{_FONT_STACK};font-size:13px;color:{_TEXT_SECONDARY};
+                    text-align:center;margin:12px 0 0;">
+            <a href="{dashboard_href}" style="color:{_TEXT_SECONDARY};text-decoration:underline;">
+              + {remaining_count} more in your dashboard
+            </a>
+          </p>"""
+            if remaining_count > 0 and dashboard_configured
+            else ""
         )
         job_list_html = f"""
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
                  style="border:1px solid {_BORDER};border-radius:12px;overflow:hidden;">
             {job_rows}
-          </table>"""
+          </table>{more_link}"""
     else:
         job_list_html = f"""
           <p style="font-family:{_FONT_STACK};font-size:14px;color:{_TEXT_SECONDARY};

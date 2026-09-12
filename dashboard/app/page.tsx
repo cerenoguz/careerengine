@@ -57,8 +57,8 @@ function bucketLabel(bucket: Job["bucket"]) {
 }
 
 function bucketClass(bucket: Job["bucket"]) {
-  if (bucket === "apply_now") return "bg-[#FBE3EB] text-[#8E4E5B] ring-[#FBE3EB]";
-  if (bucket === "review") return "bg-[#FBE3EB] text-[#8E4E5B] ring-[#FBE3EB]";
+  if (bucket === "apply_now") return "bg-[#FCEEF3] text-[#C24B82] ring-[#FCEEF3]";
+  if (bucket === "review") return "bg-[#FCEEF3] text-[#C24B82] ring-[#FCEEF3]";
   if (bucket === "archive") return "bg-stone-100 text-stone-600 ring-stone-200";
   return "bg-red-50 text-red-700 ring-red-100";
 }
@@ -125,9 +125,16 @@ function FitStatusRow({
 }) {
   const symbol = status === "yes" ? "✓" : status === "no" ? "×" : "?";
 
+  const toneClass =
+    status === "yes"
+      ? "border-[#F7C7DB] text-[#C24B82]"
+      : "border-stone-200 text-stone-400";
+
   return (
     <div className="flex items-center gap-3">
-      <span className="flex h-6 w-6 items-center justify-center rounded-full border border-[#F3C6CF] text-sm font-semibold leading-none text-[#F199AA]">
+      <span
+        className={`flex h-6 w-6 items-center justify-center rounded-full border text-sm font-semibold leading-none ${toneClass}`}
+      >
         {symbol}
       </span>
       <span className="text-[14px] font-medium text-stone-700">{label}</span>
@@ -160,23 +167,25 @@ export default function Home() {
       .neq("bucket", "exclude");
 
     if (activeFilter === "new") {
-      query = query.eq("first_found_date", todayString()).order("current_rank", {
-        ascending: true,
-        nullsFirst: false,
-      });
-    }
-
-    if (activeFilter === "best_fit") {
-      query = query
-        .order("current_rank", { ascending: true, nullsFirst: false })
-        .order("ai_profile_fit", { ascending: false, nullsFirst: false });
+      query = query.eq("first_found_date", todayString());
     }
 
     if (activeFilter === "not_viewed") {
-      query = query
-        .is("viewed_at", null)
-        .order("current_rank", { ascending: true, nullsFirst: false });
+      query = query.is("viewed_at", null);
     }
+
+    // Every filter shows jobs best-fit first, regardless of which filter is
+    // active. current_rank is a *positional* rank recomputed fresh within
+    // each day's run, so it's only comparable to other jobs synced that same
+    // day — it can't be the primary sort once jobs from different sync dates
+    // are mixed together (that's what produced duplicate "Rank #1" jobs).
+    // ai_profile_fit and final_score are absolute scores that stay
+    // comparable across days, so they lead; current_rank only breaks ties
+    // within a single day's batch.
+    query = query
+      .order("ai_profile_fit", { ascending: false, nullsFirst: false })
+      .order("final_score", { ascending: false, nullsFirst: false })
+      .order("current_rank", { ascending: true, nullsFirst: false });
 
     const { data, error: queryError } = await query.limit(500);
 
@@ -269,31 +278,33 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f7f4ef] px-5 py-8 text-stone-950">
+    <main className="min-h-screen bg-[#EFEFF2] px-5 py-8 text-stone-950">
       <div className="mx-auto max-w-6xl">
-        <header className="mb-8 rounded-3xl border border-stone-200 bg-white/80 p-6 shadow-sm shadow-stone-200/60 backdrop-blur">
-          <div className="mb-8 flex items-center justify-between gap-4">
-            <div>
-              <div className="text-xl font-semibold tracking-[-0.05em] text-[#2B2927]">
-                CareerEngine <span className="text-[#D98E9B]">.</span>{" "}
-                <span className="font-serif text-base font-normal italic tracking-normal text-[#766F6A]">
-                  by Ceren Oguz
-                </span>
+        <header className="mb-8 rounded-2xl border border-stone-200 bg-white p-8">
+          <div className="mb-7 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-[18px] items-end gap-[3px]">
+                <span className="block w-1 rounded-[1px] bg-stone-950" style={{ height: 8 }} />
+                <span className="block w-1 rounded-[1px] bg-stone-950" style={{ height: 13 }} />
+                <span className="block w-1 rounded-[1px] bg-stone-950" style={{ height: 18 }} />
               </div>
+              <span className="text-[15px] font-semibold tracking-[-0.01em] text-stone-950">
+                CareerEngine
+              </span>
             </div>
 
-            <div className="hidden rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-medium text-stone-500 sm:block">
+            <div className="hidden rounded-full border border-stone-200 bg-[#FAFAFB] px-3 py-1.5 text-xs font-medium text-stone-500 sm:block">
               Supabase Dashboard
             </div>
           </div>
 
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-[#D98E9B]">
+          <p className="mb-3 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-[#C24B82]">
             AI-assisted job discovery pipeline
           </p>
-          <h1 className="max-w-4xl text-2xl font-semibold tracking-tight text-stone-950 sm:text-3xl lg:text-4xl">
+          <h1 className="max-w-4xl text-2xl font-semibold tracking-tight text-stone-950 sm:text-3xl lg:text-[28px]">
             Manage your ranked job opportunities.
           </h1>
-          <p className="mt-4 max-w-3xl text-sm leading-6 text-stone-600">
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
             Review qualified roles, track application decisions, and maintain a focused
             opportunity queue as CareerEngine refreshes and re-ranks postings.
           </p>
@@ -350,16 +361,19 @@ export default function Home() {
         )}
 
         <div className="space-y-4">
-          {jobs.map((job) => (
+          {jobs.map((job, index) => (
             <article
               key={job.job_id}
-              className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-200/70 transition hover:-translate-y-0.5 hover:shadow-md"
+              className="rounded-2xl border border-stone-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-stone-300"
             >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="mb-3 flex flex-wrap gap-2">
-                    <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600 ring-1 ring-stone-200">
-                      Rank #{job.current_rank ?? "—"}
+                    <span
+                      title="Position in this filtered, best-fit-first view"
+                      className="rounded-full bg-[#FAFAFB] px-2.5 py-1 font-mono text-xs font-medium text-stone-600 ring-1 ring-stone-200"
+                    >
+                      Rank #{index + 1}
                     </span>
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${bucketClass(
@@ -369,7 +383,7 @@ export default function Home() {
                       {bucketLabel(job.bucket)}
                     </span>
                     {job.opportunity_type && (
-                      <span className="rounded-full bg-[#FBE3EB] px-2.5 py-1 text-xs font-medium text-[#8E4E5B] ring-1 ring-[#FBE3EB]">
+                      <span className="rounded-full bg-[#FAFAFB] px-2.5 py-1 text-xs font-medium text-stone-600 ring-1 ring-stone-200">
                         {job.opportunity_type}
                       </span>
                     )}
@@ -384,16 +398,16 @@ export default function Home() {
                   </p>
 
                   <div className="mt-4 grid gap-3 text-sm text-stone-600 sm:grid-cols-3">
-                    <div className="rounded-2xl bg-stone-50 px-5 py-4">
+                    <div className="rounded-xl bg-[#FAFAFB] px-5 py-4">
                       <span className="block text-xs font-medium uppercase tracking-wide text-stone-400">
                         AI Fit
                       </span>
-                      <p className="mt-2 text-[15px] font-medium text-stone-700">
+                      <p className="mt-2 font-mono text-[15px] font-medium text-stone-700">
                         {formatAiFit(job)}
                       </p>
                     </div>
 
-                    <div className="rounded-2xl bg-stone-50 px-5 py-4">
+                    <div className="rounded-xl bg-[#FAFAFB] px-5 py-4">
                       <div className="flex flex-col gap-2">
                         <FitStatusRow
                           label="New Grad"
@@ -406,11 +420,11 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl bg-stone-50 px-5 py-4">
+                    <div className="rounded-xl bg-[#FAFAFB] px-5 py-4">
                       <span className="block text-xs font-medium uppercase tracking-wide text-stone-400">
                         First Found
                       </span>
-                      <p className="mt-2 text-[15px] font-medium text-stone-700">
+                      <p className="mt-2 font-mono text-[15px] font-medium text-stone-700">
                         {job.first_found_date}
                       </p>
                     </div>
@@ -441,18 +455,18 @@ export default function Home() {
                     }}
                     className={`rounded-xl px-4 py-2.5 text-sm font-medium transition disabled:opacity-50 ${
                       job.applied_at
-                        ? "cursor-default border border-stone-200 bg-white text-stone-950"
-                        : "bg-[#F199AA] text-white hover:bg-[#E58A9B]"
+                        ? "cursor-default bg-[#F7C7DB] text-[#4A1A32]"
+                        : "border border-[#F7C7DB] bg-white text-[#C24B82] hover:bg-[#FCEEF3]"
                     }`}
                   >
-                    {job.applied_at ? "Applied" : "Apply"}
+                    {job.applied_at ? "✓ Applied" : "Apply"}
                   </button>
 
                   <select
                     disabled={actingJobId === job.job_id}
                     defaultValue=""
                     onChange={(event) => markNotApplied(job, event.target.value)}
-                    className="rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-600 shadow-sm disabled:opacity-50"
+                    className="rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-600 disabled:opacity-50"
                   >
                     <option value="" disabled>
                       Not Applied...

@@ -90,7 +90,7 @@ def test_daily_email_report_uses_lightweight_dashboard_reminder():
     assert "Your CareerEngine job queue has been updated." in report
     assert "Open dashboard:\nhttps://careerengine.example.com" in report
     assert "Newly found jobs today: 2" in report
-    assert "Newly added jobs:" in report
+    assert "Your top matches among today's new jobs:" in report
     assert "1. Company 1 — Software Engineer 1 — Boston, MA" in report
     assert "2. Company 2 — Software Engineer 2 — Boston, MA" in report
     assert "Active qualified opportunities ranked: 40" in report
@@ -102,14 +102,16 @@ def test_daily_email_report_uses_lightweight_dashboard_reminder():
     assert "Why CareerEngine selected this role:" not in report
 
 
-def test_daily_email_report_lists_all_newly_discovered_jobs():
+def test_daily_email_report_caps_list_at_top_five_by_fit():
     jobs = [make_job(index, is_new_discovery=True) for index in range(1, 7)]
 
     report = build_report(jobs)
 
+    assert "Newly found jobs today: 6" in report
     assert "1. Company 1 — Software Engineer 1 — Boston, MA" in report
     assert "5. Company 5 — Software Engineer 5 — Boston, MA" in report
-    assert "6. Company 6 — Software Engineer 6 — Boston, MA" in report
+    assert "6. Company 6 — Software Engineer 6 — Boston, MA" not in report
+    assert "...and 1 more. See the dashboard for the full list." in report
 
 
 def test_daily_email_report_handles_no_new_jobs():
@@ -200,6 +202,18 @@ def test_daily_email_html_escapes_job_fields():
     assert "<script>alert(1)</script>" not in html_report
     assert "&lt;script&gt;" in html_report
     assert "R&amp;D Engineer" in html_report
+
+
+def test_daily_email_html_caps_list_at_top_five_by_fit():
+    jobs = [make_job(index, is_new_discovery=True) for index in range(1, 7)]
+
+    html_report = build_html_report(jobs)
+
+    assert "Company 1" in html_report
+    assert "Company 5" in html_report
+    assert "Company 6" not in html_report
+    assert "+ 1 more in your dashboard" in html_report
+    assert 'padding:1px 8px;">6</td>' in html_report
 
 
 def test_daily_email_html_handles_no_new_jobs():
