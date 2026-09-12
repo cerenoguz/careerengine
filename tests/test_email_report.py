@@ -86,7 +86,7 @@ def test_daily_email_report_uses_lightweight_dashboard_reminder():
         dashboard_url="https://careerengine.example.com",
     )
 
-    assert report.startswith("Dear Ceren,")
+    assert report.startswith("Hi there,")
     assert "Your CareerEngine job queue has been updated." in report
     assert "Open dashboard:\nhttps://careerengine.example.com" in report
     assert "Newly found jobs today: 2" in report
