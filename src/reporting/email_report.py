@@ -251,21 +251,8 @@ def build_daily_email_html(
           <tr>
             <td style="padding:40px 40px 32px;">
 
-              <!-- Logo -->
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td valign="bottom" style="padding:0 3px 4px 0;">
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                      <td valign="bottom" style="padding:0 3px 0 0;"><div style="width:4px;height:8px;background:{_TEXT_PRIMARY};border-radius:1px;font-size:1px;line-height:1px;">&nbsp;</div></td>
-                      <td valign="bottom" style="padding:0 3px 0 0;"><div style="width:4px;height:13px;background:{_TEXT_PRIMARY};border-radius:1px;font-size:1px;line-height:1px;">&nbsp;</div></td>
-                      <td valign="bottom"><div style="width:4px;height:18px;background:{_TEXT_PRIMARY};border-radius:1px;font-size:1px;line-height:1px;">&nbsp;</div></td>
-                    </tr></table>
-                  </td>
-                  <td valign="bottom" style="padding-bottom:2px;">
-                    <span style="font-family:{_FONT_STACK};font-size:15px;font-weight:600;color:{_TEXT_PRIMARY};">CareerEngine</span>
-                  </td>
-                </tr>
-              </table>
+              <!-- Wordmark -->
+              <span style="font-family:{_FONT_STACK};font-size:15px;font-weight:600;color:{_TEXT_PRIMARY};">CareerEngine</span>
 
               <p style="font-family:{_FONT_STACK};font-size:26px;line-height:1.25;font-weight:600;
                         color:{_TEXT_PRIMARY};margin:28px 0 12px;">

@@ -42,26 +42,6 @@ footer {
   margin-right: auto;
 }
 
-/* --- Brand mark (shared with email + dashboard) --- */
-
-.brand-mark {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 18px;
-}
-
-.brand-mark span {
-  display: block;
-  width: 4px;
-  border-radius: 1px;
-  background: var(--text-primary);
-}
-
-.brand-mark span:nth-child(1) { height: 8px; }
-.brand-mark span:nth-child(2) { height: 13px; }
-.brand-mark span:nth-child(3) { height: 18px; }
-
 /* --- Header --- */
 
 .site-header {
@@ -74,14 +54,20 @@ footer {
 
 .brand {
   display: inline-flex;
-  align-items: center;
-  gap: 9px;
+  align-items: baseline;
+  gap: 10px;
 }
 
 .brand-name {
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+.brand-author {
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+  font-weight: 400;
 }
 
 nav {
