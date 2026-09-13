@@ -1,6 +1,6 @@
 # CareerEngine
 
-> **Status:** In active development — V2.2, September 2026
+> https://cerenoguz.github.io/careerengine/
 
 Job hunting as a new grad means checking the same dozens of company career pages every single day, hoping to catch a new posting before hundreds of other applicants do, while also trying to figure out — role by role — whether a company will even sponsor a visa if you need one. That's a lot of repetitive, tedious checking for very little signal, and it's easy to miss a good opportunity simply because you didn't refresh the right page at the right time.
 
