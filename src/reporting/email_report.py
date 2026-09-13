@@ -20,7 +20,8 @@ _MONO_STACK = "'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace"
 
 EMAIL_JOB_LIST_LIMIT = 5
 
-REPORT_RECIPIENT_NAME = os.getenv("CAREERENGINE_RECIPIENT_NAME", "there")
+def _recipient_name() -> str:
+    return os.getenv("CAREERENGINE_RECIPIENT_NAME", "there")
 
 
 def format_report_date(report_date: date | None = None) -> str:
@@ -85,7 +86,7 @@ def build_daily_email_report(
     remaining_count = len(newly_discovered_jobs) - len(jobs_to_list)
 
     lines = [
-        f"Hi {REPORT_RECIPIENT_NAME},",
+        f"Hi {_recipient_name()},",
         "",
         "Your CareerEngine job queue has been updated.",
         "",
@@ -271,7 +272,7 @@ def build_daily_email_html(
                 {len(newly_discovered_jobs)} new role{"s" if len(newly_discovered_jobs) != 1 else ""} matched your profile today.
               </p>
               <p style="font-family:{_FONT_STACK};font-size:15px;line-height:1.6;color:{_TEXT_SECONDARY};margin:0 0 28px;max-width:440px;">
-                Hi {html.escape(REPORT_RECIPIENT_NAME)}, your CareerEngine job queue has been updated.
+                Hi {html.escape(_recipient_name())}, your CareerEngine job queue has been updated.
               </p>
 
               {f'<div style="margin-bottom:32px;">{cta_button}</div>' if cta_button else ""}

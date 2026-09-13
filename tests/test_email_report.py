@@ -79,7 +79,9 @@ def test_format_top_role_line_handles_missing_location():
     )
 
 
-def test_daily_email_report_uses_lightweight_dashboard_reminder():
+def test_daily_email_report_uses_lightweight_dashboard_reminder(monkeypatch):
+    monkeypatch.delenv("CAREERENGINE_RECIPIENT_NAME", raising=False)
+
     report = build_report(
         [make_job(1, is_new_discovery=True), make_job(2, is_new_discovery=True)],
         qualified_jobs=40,
@@ -118,6 +120,14 @@ def test_daily_email_report_handles_no_new_jobs():
     report = build_report([], total_jobs_collected=0, qualified_jobs=0)
 
     assert "No new job postings found today." in report
+
+
+def test_daily_email_report_uses_configured_recipient_name(monkeypatch):
+    monkeypatch.setenv("CAREERENGINE_RECIPIENT_NAME", "Alex")
+
+    report = build_report([], total_jobs_collected=0, qualified_jobs=0)
+
+    assert report.startswith("Hi Alex,")
     assert "Best of luck,\nCareerEngine" in report
 
 
