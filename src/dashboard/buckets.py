@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.ranking.profile_fit import MODERATE_THRESHOLD, STRONG_THRESHOLD
+
 
 SENIORITY_WORDS = (
     "senior",
@@ -98,10 +100,10 @@ def classify_dashboard_bucket(
     if senior_title and not junior_signal:
         return "archive"
 
-    if fit >= 70:
+    if fit >= STRONG_THRESHOLD:
         return "apply_now"
 
-    if 60 <= fit < 70:
+    if MODERATE_THRESHOLD <= fit < STRONG_THRESHOLD:
         return "review"
 
     if "unclear" in _lower(work_auth_review) or "needs review" in _lower(work_auth_review):

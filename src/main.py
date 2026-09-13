@@ -671,15 +671,9 @@ def main() -> None:
     for job, semantic_score in zip(recommended_jobs, semantic_scores):
         job.semantic_similarity = semantic_score
 
-        cs_relevance_status, _ = classify_cs_relevance(
-            job.title,
-            job.description,
-        )
-
         profile_fit = calculate_profile_fit_score(
             semantic_similarity=semantic_score,
             description_similarity=job.description_similarity,
-            cs_relevance_status=cs_relevance_status,
             is_internship=job.is_internship,
             is_new_grad=job.is_new_grad,
             required_years_min=job.required_years_min,

@@ -59,7 +59,9 @@ The daily email body lists the top newly discovered jobs, ranked best-fit first,
 
 ## Ranking signals
 
-The current scoring model considers:
+CareerEngine scores every job in two stages.
+
+**Base score** — used for the initial sort and to decide which jobs qualify at all:
 
 * Software engineering and backend relevance
 * Python, Java, TypeScript, SQL, REST APIs, PostgreSQL, Docker, cloud systems, data pipelines, and ML/LLM overlap
@@ -67,9 +69,14 @@ The current scoring model considers:
 * Internship and early-career signals
 * Seniority penalties and blockers
 * Work-authorization wording when present
-* Lexical profile-to-description similarity
 
-Sentence-BERT semantic similarity is currently running in shadow mode. It is calculated for evaluation but does not yet affect the live recommendation order.
+**AI Fit** — computed only for jobs that already qualified, and shown on the dashboard as a match percentage:
+
+* Sentence-BERT semantic similarity between the candidate profile and the job description
+* Lexical wording overlap between the profile and the description
+* New-grad/internship eligibility, and experience-year or seniority-title conflicts
+
+AI Fit deliberately excludes CS/Math relevance — that signal is already scored once in the base score and used again to decide which jobs qualify, so re-adding it here would double-count it. AI Fit is converted into a bounded adjustment (+25 / +12 / 0 / −12) that's added back onto the base score, and the qualified pool is re-sorted by the combined result. This isn't a shadow calculation shown for reference — it genuinely changes the final ranking order on every run.
 
 ## The tech, and the numbers
 
@@ -84,8 +91,8 @@ As of the most recent run:
 | Companies tracked | **75** |
 | Sources reachable per run | **74 / 75** |
 | Job postings scanned per run | **~11,800** |
-| Qualified & ranked opportunities live | **239** |
-| Automated tests | **104**, all passing |
+| Qualified & ranked opportunities live | **234** |
+| Automated tests | **107**, all passing |
 | Email delivery schedule | Daily, 1:00 PM Turkey time |
 
 ## Project structure
@@ -129,15 +136,14 @@ Implemented:
 * Daily HTML + plain-text email reporting
 * Ranked additional-opportunities attachment
 * Seen-job tracking and delivery auditing
-* Sentence-BERT semantic matching in shadow mode
+* Sentence-BERT semantic matching (AI Fit), live in ranking order
 * GitHub Actions automation, scheduled daily
 * Supabase-backed tracking dashboard
-* 104 automated tests covering ranking, delivery, reports, and collectors
+* 107 automated tests covering ranking, delivery, reports, and collectors
 
 In progress:
 
 * Production validation of the revised backlog behavior
-* Controlled rollout of semantic ranking
 * Compliant collectors for additional large companies with custom careers sites
 
 ## Notes for contributors

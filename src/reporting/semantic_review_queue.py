@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 
 from src.models import Job
+from src.ranking.profile_fit import LOWER_PRIORITY_THRESHOLD, STRONG_THRESHOLD
 
 
 REVIEW_COLUMNS = [
@@ -132,7 +133,7 @@ def _select_review_jobs(
             sorted(
                 [
                     job for job in jobs
-                    if 45 <= job.profile_fit_score < 70
+                    if LOWER_PRIORITY_THRESHOLD <= job.profile_fit_score < STRONG_THRESHOLD
                 ],
                 key=lambda job: job.profile_fit_score,
                 reverse=True,

@@ -8,12 +8,17 @@ class ProfileFitResult:
     reasons: list[str]
 
 
+STRONG_THRESHOLD = 45.0
+MODERATE_THRESHOLD = 40.0
+LOWER_PRIORITY_THRESHOLD = 35.0
+
+
 def classify_profile_fit(score: float) -> str:
-    if score >= 70:
+    if score >= STRONG_THRESHOLD:
         return "strong"
-    if score >= 60:
+    if score >= MODERATE_THRESHOLD:
         return "moderate"
-    if score >= 50:
+    if score >= LOWER_PRIORITY_THRESHOLD:
         return "lower_priority"
     return "weak"
 
@@ -22,7 +27,6 @@ def calculate_profile_fit_score(
     *,
     semantic_similarity: float,
     description_similarity: float,
-    cs_relevance_status: str,
     is_internship: bool,
     is_new_grad: bool,
     required_years_min: int | None,
@@ -32,11 +36,19 @@ def calculate_profile_fit_score(
     senior_title_signal: bool = False,
 ) -> ProfileFitResult:
     """
-    Produce a calibrated CareerEngine profile-fit score from 0–100.
+    Produce a calibrated CareerEngine profile-fit score from 0-100.
 
     This is a CareerEngine fit score, not a literal probability of qualifying.
-    Sentence-BERT contributes bounded semantic evidence; deterministic signals
-    such as technical relevance and early-career eligibility remain important.
+    It intentionally excludes CS/Math domain relevance: that signal is already
+    scored once in rule_score.score_job() and used again to gate which jobs
+    reach this function at all (see is_recommendable_job), so adding it here
+    too would double-count it in the final ranking. This score instead
+    captures what score_job() does not: semantic and wording alignment with
+    the candidate's own profile, plus early-career eligibility and
+    experience/seniority fit. Because a ~40-point component was removed, the
+    band thresholds below are scaled down proportionally from the original
+    70/60/50 (on a 0-100 scale with CS relevance included) to 45/40/35 (on
+    the ~74-point scale achievable without it).
     """
     score = 0.0
     reasons: list[str] = []
@@ -48,16 +60,6 @@ def calculate_profile_fit_score(
     wording_component = max(0.0, min(1.0, description_similarity)) * 20
     score += wording_component
     reasons.append(f"Profile wording alignment (+{wording_component:.1f})")
-
-    relevance_points = {
-        "strong_cs_relevance": 40,
-        "cs_adjacent": 25,
-        "possibly_cs_adjacent": 12,
-    }.get(cs_relevance_status, 0)
-
-    score += relevance_points
-    if relevance_points:
-        reasons.append(f"Technical/domain relevance (+{relevance_points})")
 
     if is_internship:
         score += 12
@@ -100,11 +102,16 @@ def profile_fit_ranking_adjustment(score: float) -> tuple[float, str]:
 
     This affects ordering only. It does not override hard exclusions and does
     not remove lower-scoring roles from the current qualified pool.
+
+    Bands come from classify_profile_fit() rather than duplicating the
+    thresholds here, so the two can't drift out of sync.
     """
-    if score >= 70:
+    band = classify_profile_fit(score)
+
+    if band == "strong":
         return 25.0, "Strong AI profile fit (+25)"
-    if score >= 60:
+    if band == "moderate":
         return 12.0, "Moderate AI profile fit (+12)"
-    if score >= 50:
+    if band == "lower_priority":
         return 0.0, "Lower-priority AI profile fit (no adjustment)"
     return -12.0, "Lower-confidence AI profile fit (-12)"
