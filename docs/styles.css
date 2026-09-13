@@ -300,7 +300,9 @@ nav a:hover { color: var(--text-primary); }
 .screenshot-card img {
   display: block;
   width: 100%;
-  height: auto;
+  height: 320px;
+  object-fit: cover;
+  object-position: top;
   border-bottom: 1px solid var(--border);
 }
 

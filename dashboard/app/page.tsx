@@ -283,11 +283,6 @@ export default function Home() {
         <header className="mb-8 rounded-2xl border border-stone-200 bg-white p-8">
           <div className="mb-7 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-[18px] items-end gap-[3px]">
-                <span className="block w-1 rounded-[1px] bg-stone-950" style={{ height: 8 }} />
-                <span className="block w-1 rounded-[1px] bg-stone-950" style={{ height: 13 }} />
-                <span className="block w-1 rounded-[1px] bg-stone-950" style={{ height: 18 }} />
-              </div>
               <span className="text-[15px] font-semibold tracking-[-0.01em] text-stone-950">
                 CareerEngine
               </span>
