@@ -151,3 +151,7 @@ In progress:
 `config/candidate_profile.txt`, local SQLite files, generated reports, and SMTP credentials are local runtime configuration. They should not be committed to a public repository.
 
 The email greeting name defaults to "there" and can be personalized via the `CAREERENGINE_RECIPIENT_NAME` environment variable — see `.env.example`.
+
+## License
+
+MIT — see `LICENSE`.
