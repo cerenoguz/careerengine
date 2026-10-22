@@ -38,11 +38,12 @@ from src.reporting.additional_opportunities_report import save_additional_opport
 from src.dashboard.supabase_sync import sync_jobs_to_supabase
 from src.storage.database import (
     current_new_york_date,
+    get_job_discoveries,
     has_successful_delivery_for_date,
     initialize_database,
-    record_job_discoveries,
     record_run_audit,
     record_successful_delivery,
+    save_job_discoveries,
 )
 
 
@@ -725,7 +726,9 @@ def main() -> None:
     )
     print(f"Saved semantic review queue to: {semantic_review_queue_path}")
 
-    discovery_info = record_job_discoveries(recommended_jobs)
+    # Read-only here: discoveries are only persisted after the delivery step
+    # below, so a failed send doesn't mark today's jobs as already seen.
+    discovery_info = get_job_discoveries(recommended_jobs)
 
     for job in recommended_jobs:
         first_found_date, is_new_discovery = discovery_info[job.id]
@@ -814,6 +817,11 @@ def main() -> None:
             )
         else:
             print("Email was not sent; no daily delivery record was created.")
+
+    # Reached only if the send step didn't raise (an SMTP failure propagates
+    # and skips this), so jobs from a failed delivery stay "new" for the next
+    # run. Disabled-email and already-delivered-today runs still persist.
+    save_job_discoveries(recommended_jobs)
 
     record_run_audit(
         run_id=run_id,

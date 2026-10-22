@@ -1,3 +1,6 @@
+import re
+
+
 POSITIVE_AUTH_SIGNALS = [
     "opt",
     "stem opt",
@@ -32,14 +35,35 @@ NEGATIVE_AUTH_SIGNALS = [
 ]
 
 
+def _contains_signal(normalized_text: str, signal: str) -> bool:
+    """
+    Match a signal as a whole term, not as letters inside another word.
+
+    "opt" must not match "optimize" or "adoption", and "itar" must not match
+    "military". Short acronyms that are also standalone words in other
+    contexts (e.g. "CPT codes") can still match; this only guards against
+    substring hits.
+    """
+    pattern = rf"(?<![a-z0-9]){re.escape(signal)}(?![a-z0-9])"
+    return re.search(pattern, normalized_text) is not None
+
+
 def find_positive_auth_signals(text: str) -> list[str]:
     normalized_text = text.lower()
-    return [signal for signal in POSITIVE_AUTH_SIGNALS if signal in normalized_text]
+    return [
+        signal
+        for signal in POSITIVE_AUTH_SIGNALS
+        if _contains_signal(normalized_text, signal)
+    ]
 
 
 def find_negative_auth_signals(text: str) -> list[str]:
     normalized_text = text.lower()
-    return [signal for signal in NEGATIVE_AUTH_SIGNALS if signal in normalized_text]
+    return [
+        signal
+        for signal in NEGATIVE_AUTH_SIGNALS
+        if _contains_signal(normalized_text, signal)
+    ]
 
 
 def classify_eligibility(text: str) -> tuple[str, list[str], list[str]]:
