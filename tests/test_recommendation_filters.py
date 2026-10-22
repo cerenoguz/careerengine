@@ -65,7 +65,7 @@ def test_non_us_early_career_software_engineer_is_not_recommendable() -> None:
     assert is_recommendable_job(job) is False
 
 
-def test_senior_title_alone_is_not_a_hard_exclusion() -> None:
+def test_senior_title_without_junior_evidence_is_not_recommendable() -> None:
     job = make_job(
         title="Senior Backend Software Engineer",
         location="New York, NY",
@@ -75,7 +75,7 @@ def test_senior_title_alone_is_not_a_hard_exclusion() -> None:
         ),
     )
 
-    assert is_recommendable_job(job) is True
+    assert is_recommendable_job(job) is False
 
 
 def test_technical_escalations_engineer_with_cs_duties_is_recommendable() -> None:
