@@ -50,6 +50,22 @@ def has_senior_title_blocker(title: str) -> bool:
     )
 
 
+def has_unrealistic_senior_title(title: str) -> bool:
+    """
+    Title-level seniority that keeps a role out of a new-grad search.
+
+    "Member of Technical Staff" is a generic engineer title at many AI labs,
+    not a staff-level one, so it is not treated as senior here.
+    """
+    normalized_title = re.sub(
+        r"\bmember of technical staff\b",
+        "",
+        title,
+        flags=re.IGNORECASE,
+    )
+    return has_senior_title_blocker(normalized_title)
+
+
 
 # -----------------------------
 # Roles to remove entirely

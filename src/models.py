@@ -36,6 +36,7 @@ class Job:
     export_control_restriction: str = "no"
     sponsorship_language: str = "unclear"
     experience_fit: str = "unclear"
+    title_description_conflict: bool = False
     evaluation_reason: str = ""
     evaluation_evidence: list[str] = field(default_factory=list)
     evaluation_confidence: float = 0.0
