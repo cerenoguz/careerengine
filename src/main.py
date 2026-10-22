@@ -21,6 +21,7 @@ from src.ranking.rule_score import (
     classify_cs_relevance,
     is_excluded_role,
     has_senior_title_blocker,
+    has_unrealistic_senior_title,
     is_internship,
     is_new_grad,
     score_job,
@@ -270,7 +271,9 @@ def is_recommendable_job(job: Job) -> bool:
     - not be likely incompatible with OPT/work authorization
     - be clearly or defensibly related to CS/Math based on title + description
     - be U.S.-based or U.S.-remote
-    - be realistic for a new-grad / early-career candidate
+    - be realistic for a new-grad / early-career candidate: no senior/staff/
+      principal/lead/manager-style title, unless the description is clearly
+      junior-friendly (title_description_conflict)
     """
     # Excluded role category should be title-based.
     # The description may mention sales/marketing/support as partner teams,
@@ -288,6 +291,9 @@ def is_recommendable_job(job: Job) -> bool:
         return False
 
     if job.hard_no:
+        return False
+
+    if has_unrealistic_senior_title(job.title) and not job.title_description_conflict:
         return False
 
     if not is_us_opt_location(job.location):
@@ -318,6 +324,9 @@ def get_rejection_reasons(job: Job) -> list[str]:
 
     if job.hard_no:
         rejection_reasons.append(job.evaluation_reason or "explicit hard requirement")
+
+    if has_unrealistic_senior_title(job.title) and not job.title_description_conflict:
+        rejection_reasons.append("senior-level title without junior-friendly evidence")
 
     if not is_us_opt_location(job.location):
         rejection_reasons.append("location is not clearly U.S./OPT-compatible")
@@ -390,6 +399,7 @@ def enrich_jobs(jobs: list[Job], candidate_profile: str) -> None:
         job.export_control_restriction = evaluation.export_control_restriction
         job.sponsorship_language = evaluation.sponsorship_language
         job.experience_fit = evaluation.experience_fit
+        job.title_description_conflict = evaluation.title_description_conflict
         job.evaluation_reason = evaluation.reason
         job.evaluation_evidence = evaluation.evidence
         job.evaluation_confidence = evaluation.confidence
