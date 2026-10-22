@@ -347,9 +347,13 @@ def record_run_audit(
         )
 
 
-def record_job_discoveries(jobs: list[Job]) -> dict[str, tuple[str, bool]]:
+def get_job_discoveries(jobs: list[Job]) -> dict[str, tuple[str, bool]]:
     """
-    Record the first date CareerEngine observed each active qualified job.
+    Look up the first date CareerEngine observed each job, without writing.
+
+    Jobs not yet stored are reported as new, with today as their first-found
+    date. Call save_job_discoveries() once those jobs have actually been
+    delivered, so a failed delivery doesn't mark them as already seen.
 
     Returns:
         {job_id: (first_found_date, is_new_discovery)}
@@ -371,11 +375,31 @@ def record_job_discoveries(jobs: list[Job]) -> dict[str, tuple[str, bool]]:
             job_ids,
         ).fetchall()
 
-        existing_dates = {
-            job_id: first_found_date
-            for job_id, first_found_date in existing_rows
-        }
+    existing_dates = {
+        job_id: first_found_date
+        for job_id, first_found_date in existing_rows
+    }
 
+    return {
+        job.id: (
+            existing_dates.get(job.id, today),
+            job.id not in existing_dates,
+        )
+        for job in jobs
+    }
+
+
+def save_job_discoveries(jobs: list[Job]) -> None:
+    """
+    Persist the first-found date for any job not already stored.
+    Existing rows are never overwritten.
+    """
+    if not jobs:
+        return
+
+    today = current_new_york_date()
+
+    with get_connection() as connection:
         connection.executemany(
             """
             INSERT OR IGNORE INTO job_discoveries (
@@ -387,10 +411,14 @@ def record_job_discoveries(jobs: list[Job]) -> dict[str, tuple[str, bool]]:
             [(job.id, today) for job in jobs],
         )
 
-    return {
-        job.id: (
-            existing_dates.get(job.id, today),
-            job.id not in existing_dates,
-        )
-        for job in jobs
-    }
+
+def record_job_discoveries(jobs: list[Job]) -> dict[str, tuple[str, bool]]:
+    """
+    Look up and immediately persist discoveries in one step.
+
+    Prefer get_job_discoveries() followed by save_job_discoveries() when the
+    save must wait for a successful delivery.
+    """
+    discovery_info = get_job_discoveries(jobs)
+    save_job_discoveries(jobs)
+    return discovery_info

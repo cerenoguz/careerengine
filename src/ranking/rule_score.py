@@ -414,7 +414,9 @@ def classify_cs_relevance(title: str, description: str) -> tuple[str, list[str]]
     text = f"{title} {description}"
     reasons: list[str] = []
 
-    if is_excluded_role(title, description):
+    # Title-only: descriptions routinely mention finance/legal/sales/marketing
+    # as partner teams, which must not exclude an engineering role.
+    if is_excluded_role(title, ""):
         return "excluded", ["Role category is excluded from CareerEngine recommendations"]
 
     strong_role_match = matches_any_pattern(text, CS_STRONG_ROLE_PATTERNS)
@@ -484,7 +486,8 @@ def score_job(title: str, description: str, eligibility_status: str) -> tuple[fl
     score = 0.0
     reasons: list[str] = []
 
-    if is_excluded_role(title, description):
+    # Title-only, matching is_recommendable_job() and classify_cs_relevance().
+    if is_excluded_role(title, ""):
         return -999.0, ["Excluded role category"]
 
     cs_relevance_status, cs_relevance_reasons = classify_cs_relevance(title, description)
