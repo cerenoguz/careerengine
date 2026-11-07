@@ -23,7 +23,7 @@ def save_match_report(
     lines = [
         "CareerEngine Match Report",
         "",
-        "Match score (0-100) = weighted average of five components, each 0-1:",
+        "Match score (0-100) = weighted average of three components, each 0-1:",
         *[f"- {name}: {weight:.0%}" for name, weight in WEIGHTS.items()],
         "",
         f"Semantic scoring: {semantic_status}",

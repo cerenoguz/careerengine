@@ -76,7 +76,7 @@ def test_attachment_shows_new_discovery_label(tmp_path):
 
     content = path.read_text(encoding="utf-8")
 
-    assert "#26. Test Company — Software Engineer [New 🚨]" in content
+    assert "#26. Test Company — Software Engineer [New]" in content
 
 
 def test_attachment_shows_first_found_date_for_existing_job(tmp_path):

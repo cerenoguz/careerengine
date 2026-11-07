@@ -1,5 +1,13 @@
 from src.ranking.role_fit import assess_role_fit
-from src.ranking.skills import candidate_skills, job_skill_weights, match_skills, skills_in
+from src.ranking.skills import (
+    _SKILL_PATTERNS,
+    candidate_skills,
+    display_name,
+    job_skill_weights,
+    match_skills,
+    skills_in,
+    SkillMatch,
+)
 
 PROFILE = "Python, Java, SQL, React, TypeScript, AWS, Docker, REST APIs, PostgreSQL, LLMs"
 
@@ -67,3 +75,14 @@ def test_platform_in_a_non_engineering_title_gets_no_credit():
 
 def test_unrelated_title_scores_zero():
     assert assess_role_fit("Office Coordinator").score == 0.0
+
+
+def test_every_skill_has_a_readable_display_name():
+    for skill in _SKILL_PATTERNS:
+        assert display_name(skill) != skill or skill.isalpha(), skill
+
+
+def test_summary_uses_display_names_not_internal_keys():
+    summary = SkillMatch(matched=["nodejs", "api_design", "cicd", "machine_learning"]).summary
+
+    assert summary == "Matching skills: Node.js, APIs, CI/CD, Machine Learning"

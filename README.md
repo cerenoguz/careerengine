@@ -35,8 +35,8 @@ That runs the whole pipeline locally and writes a report to `reports/daily_repor
 * Collects active roles from public ATS platforms including Greenhouse, Ashby, Lever, and Workable, plus verified public JSON endpoints for select large employers outside those platforms (Amazon, Netflix).
 * Normalizes job listings into a shared format.
 * Filters for software engineering, backend, full-stack, data, AI/ML, developer tools, infrastructure, healthtech, and fintech-related roles.
-* Scores every eligible role from 0–100 on level, role fit, skills overlap, semantic similarity to the candidate profile, and work-authorization wording.
-* Prioritizes new-grad roles, SWE I, and other early-career opportunities; excludes internships and roles targeting grad years outside the candidate's own.
+* Scores every eligible role from 0–100 on how well it matches the candidate's experience: skills overlap, semantic similarity to the candidate profile, and role fit.
+* Excludes internships and roles targeting grad years outside the candidate's own. Entry-level and visa-sponsorship status are shown as separate indicators and never change a role's score.
 * Excludes senior-level roles outright: senior/staff/principal/lead/manager titles, numbered levels above II (III, IV, 4+, L4+), and postings that require more than three years of experience. A junior-sounding description never overrides a senior title.
 * Sends the top newly discovered opportunities in a daily email report, ranked best-fit first.
 * Generates a ranked TXT attachment for additional qualified opportunities below the top-ranked cutoff.
@@ -68,17 +68,17 @@ Ranking happens in two steps: hard eligibility gates first, then one match score
 * Level gate: no senior-level title, no numbered level above II, no PhD-titled role, and no requirement of more than three years of experience. Years are read from the *required* part of the posting (ranges use their lower bound; "preferred" experience never counts against a role)
 * An engineering or data job title, based in the U.S. or U.S.-remote, and relevant to Computer Science or Mathematics
 
-**2. Match score (0–100)** — a weighted average of five components, each normalized to 0–1:
+**2. Match score (0–100)** — a weighted average of three components, each normalized to 0–1. The score measures only how well a role matches the candidate's experience. Whether a role is entry-level, and whether it offers visa sponsorship, are shown separately (the dashboard's New Grad and Visa indicators) and do not affect the number.
 
 | Component | Weight | What it measures |
 |---|---|---|
-| Level | 30% | Explicit new-grad / early-career / "I" roles score highest; unlabelled roles are neutral; "II", 2–3 required years, and senior-scope language score lower |
+| Skills | 40% | Of the technologies the posting asks for, how many the candidate already knows. Requirements and the title count more than company boilerplate, and related technologies earn partial credit |
+| Semantic | 35% | Sentence-BERT similarity between the candidate profile and the role's responsibilities and requirements, chunked so nothing is lost to the model's input window |
 | Role | 25% | How close the job title is to backend, full-stack, and software engineering, versus adjacent or specialized roles |
-| Skills | 20% | Of the technologies the posting asks for, how many the candidate knows (requirements and title count more than company boilerplate; related technologies earn partial credit) |
-| Semantic | 15% | Sentence-BERT similarity between the candidate profile and the role's responsibilities and requirements, chunked so nothing is lost to the model's input window |
-| Authorization | 10% | Sponsorship and work-authorization wording |
 
 Scores map to bands: **Excellent** (80+), **Strong** (70+), **Good** (60+), **Fair**. The same number is used for ordering, for the email, and for the dashboard. Postings that are the same role listed once per office are merged into one entry with all locations.
+
+**Work-authorization wording** is read sentence by sentence. A sentence about sponsorship that contains a negation ("visa sponsorship is not available", "unable to sponsor", "without sponsorship") marks the role as not sponsoring, and a hedged statement ("we cannot sponsor for every role") is not treated as a refusal. Hard restrictions such as citizenship, security clearance, or export-control requirements remove a role entirely.
 
 ## The tech, and the numbers
 
@@ -94,7 +94,7 @@ As of the most recent run:
 | Sources reachable per run | **74 / 75** |
 | Job postings scanned per run | **~11,800** |
 | Qualified & ranked opportunities live | **234** |
-| Automated tests | **205**, all passing |
+| Automated tests | **241**, all passing |
 | Email delivery schedule | Daily, 1:00 PM Turkey time |
 
 ## Project structure
@@ -140,7 +140,7 @@ Implemented:
 * Sentence-BERT semantic matching as one component of the match score
 * GitHub Actions automation, scheduled daily
 * Supabase-backed tracking dashboard
-* 205 automated tests covering ranking, delivery, reports, and collectors
+* 241 automated tests covering ranking, delivery, reports, and collectors
 
 In progress:
 

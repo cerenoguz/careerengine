@@ -1,6 +1,8 @@
 import re
 from dataclasses import dataclass, field
 
+from src.ranking.opt_signals import sponsorship_stance
+
 
 HARD_AUTH_PATTERNS = {
     "citizenship_required": [
@@ -117,16 +119,7 @@ def evaluate_job_description(title: str, clean_description: str) -> StructuredEv
             setattr(result, field_name, "yes")
             result.evidence.extend(evidence)
 
-    if re.search(
-        r"\bno\s+sponsorship\b"
-        r"|\bwill\s+not\s+sponsor\b"
-        r"|\bunable\s+to\s+(?:provide|offer)\s+(?:visa\s+)?sponsorship\b"
-        r"|\bdoes\s+not\s+provide\s+(?:visa\s+)?sponsorship\b",
-        normalized,
-    ):
-        result.sponsorship_language = "unavailable"
-    elif re.search(r"\bsponsorship\s+available\b|\bopen\s+to\s+sponsorship\b", normalized):
-        result.sponsorship_language = "available"
+    result.sponsorship_language = sponsorship_stance(f"{title}\n{clean_description}")
 
     result.hard_no = any(
         getattr(result, field_name) == "yes" for field_name in HARD_AUTH_PATTERNS

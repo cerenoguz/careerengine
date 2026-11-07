@@ -99,6 +99,32 @@ _SKILL_PATTERNS: dict[str, tuple[str, float]] = {
     "oauth": (r"\boauth\b|\bsso\b|\bcognito\b|\bauthentication\b", 0.4),
 }
 
+# Internal skill key -> how it reads in an email or report.
+_DISPLAY_NAMES = {
+    "python": "Python", "java": "Java", "javascript": "JavaScript", "typescript": "TypeScript",
+    "c++": "C++", "c#": "C#", "go": "Go", "rust": "Rust", "kotlin": "Kotlin", "swift": "Swift",
+    "scala": "Scala", "ruby": "Ruby", "php": "PHP", "sql": "SQL", "react": "React",
+    "nextjs": "Next.js", "vue": "Vue", "angular": "Angular", "nodejs": "Node.js",
+    "graphql": "GraphQL", "rest": "REST", "django": "Django", "flask": "Flask",
+    "fastapi": "FastAPI", "spring": "Spring", "rails": "Rails", "dotnet": ".NET",
+    "html_css": "HTML/CSS", "postgresql": "PostgreSQL", "mysql": "MySQL", "mongodb": "MongoDB",
+    "redis": "Redis", "kafka": "Kafka", "spark": "Spark", "airflow": "Airflow", "dbt": "dbt",
+    "bigquery": "BigQuery", "elasticsearch": "Elasticsearch", "dynamodb": "DynamoDB",
+    "nosql": "NoSQL", "data_pipelines": "Data Pipelines", "aws": "AWS", "gcp": "GCP",
+    "azure": "Azure", "docker": "Docker", "kubernetes": "Kubernetes", "terraform": "Terraform",
+    "cicd": "CI/CD", "linux": "Linux", "git": "Git", "microservices": "Microservices",
+    "distributed_systems": "Distributed Systems", "machine_learning": "Machine Learning",
+    "deep_learning": "Deep Learning", "nlp": "NLP", "llm": "LLMs", "pytorch": "PyTorch",
+    "tensorflow": "TensorFlow", "huggingface": "Hugging Face", "rag": "RAG / Embeddings",
+    "prompting": "Prompting / Evals", "computer_vision": "Computer Vision", "mlops": "MLOps",
+    "mcp": "MCP", "testing": "Testing", "api_design": "APIs", "oauth": "Authentication",
+}
+
+
+def display_name(skill: str) -> str:
+    return _DISPLAY_NAMES.get(skill, skill)
+
+
 _COMPILED = {
     name: (re.compile(pattern, 0 if name == "go" else re.IGNORECASE), weight)
     for name, (pattern, weight) in _SKILL_PATTERNS.items()
@@ -175,11 +201,11 @@ class SkillMatch:
     @property
     def summary(self) -> str:
         if self.matched:
-            return "Skills match: " + ", ".join(self.matched[:4])
+            return "Matching skills: " + ", ".join(display_name(s) for s in self.matched[:4])
         if self.related:
-            return "Related skills: " + ", ".join(self.related[:3])
+            return "Related skills: " + ", ".join(display_name(s) for s in self.related[:3])
         if self.missing:
-            return "Skill gaps: " + ", ".join(self.missing[:3])
+            return "Skill gaps: " + ", ".join(display_name(s) for s in self.missing[:3])
         return "Few technologies named"
 
 

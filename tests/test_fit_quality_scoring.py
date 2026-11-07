@@ -1,19 +1,20 @@
-"""Ordering guarantees of the unified match score, on realistic job pairs."""
+"""The match score reflects fit to the candidate's experience, nothing else."""
 
 from src.main import enrich_jobs
 from src.models import Job
 from src.ranking.pipeline import rank_jobs
 from src.ranking.rule_score import is_new_grad
 
-PROFILE = "Python backend engineer with SQL, APIs, cloud and distributed systems experience."
+PROFILE = (
+    "Backend engineer experienced with Python, SQL, PostgreSQL, REST APIs, AWS, Docker "
+    "and distributed systems."
+)
 
-DESCRIPTION = """
-Build backend services using Python, Java, SQL, APIs, databases, cloud systems,
-and distributed systems.
-"""
+MATCHING = "Build backend services using Python, SQL, PostgreSQL, REST APIs, AWS and Docker."
+UNRELATED = "Build services using Scala, Kafka, Spark, Terraform and Kubernetes."
 
 
-def make_job(job_id: str, title: str, description: str = DESCRIPTION) -> Job:
+def make_job(job_id: str, title: str, description: str) -> Job:
     return Job(
         id=job_id,
         company="Test Company",
@@ -26,52 +27,47 @@ def make_job(job_id: str, title: str, description: str = DESCRIPTION) -> Job:
     )
 
 
-def ranked(*titles_and_descriptions) -> list[Job]:
-    jobs = [
-        make_job(f"job-{index}", title, description)
-        for index, (title, description) in enumerate(titles_and_descriptions)
-    ]
+def scored(*specs) -> dict[str, Job]:
+    jobs = [make_job(f"job-{i}", title, description) for i, (title, description) in enumerate(specs)]
     enrich_jobs(jobs)
     rank_jobs(jobs, PROFILE)
-    return jobs
+    return {job.id: job for job in jobs}
 
 
-def test_software_engineer_i_outranks_close_level_two_role():
-    jobs = {job.title: job for job in ranked(
-        ("Software Engineer I (Quality)", DESCRIPTION),
-        ("Software Engineer II (Backend, Platform)", DESCRIPTION),
-    )}
+def test_role_matching_the_candidates_skills_outranks_one_that_does_not():
+    jobs = scored(("Software Engineer", UNRELATED), ("Software Engineer", MATCHING))
 
-    assert jobs["Software Engineer I (Quality)"].score > jobs["Software Engineer II (Backend, Platform)"].score
+    assert jobs["job-1"].score > jobs["job-0"].score
 
 
-def test_new_grad_outranks_skill_richer_level_two_role():
-    new_grad, level_two = ranked(
-        ("New Grad Software Engineer", "Build services using Python and APIs."),
-        ("Software Engineer (L2)", DESCRIPTION),
-    )[0:2]
-
-    assert new_grad.title == "New Grad Software Engineer"
-    assert new_grad.score > level_two.score
-
-
-def test_explicit_early_career_beats_unlabelled_role_with_same_content():
-    early, plain = ranked(
-        ("Software Engineer, Early Career", DESCRIPTION),
-        ("Software Engineer", DESCRIPTION),
+def test_entry_level_label_does_not_change_the_score():
+    jobs = scored(
+        ("New Grad Software Engineer", MATCHING),
+        ("Software Engineer I", MATCHING),
+        ("Software Engineer", MATCHING),
+        ("Software Engineer II", MATCHING),
     )
 
-    assert early.score > plain.score
+    assert len({round(job.score, 6) for job in jobs.values()}) == 1
 
 
-def test_asking_for_three_years_ranks_below_the_same_role_without_it():
-    plain, three_years = ranked(
-        ("Software Engineer", DESCRIPTION),
-        ("Software Engineer", DESCRIPTION + "\nRequirements\n- 3+ years of professional software engineering experience"),
+def test_a_skill_matched_level_two_role_outranks_a_poorly_matched_new_grad_role():
+    jobs = scored(("New Grad Software Engineer", UNRELATED), ("Software Engineer II", MATCHING))
+
+    assert jobs["job-1"].score > jobs["job-0"].score
+
+
+def test_sponsorship_wording_does_not_change_the_score():
+    jobs = scored(
+        ("Software Engineer", MATCHING + " Visa sponsorship is available."),
+        ("Software Engineer", MATCHING + " Visa sponsorship is not available."),
+        ("Software Engineer", MATCHING),
     )
 
-    assert plain.score > three_years.score
+    assert len({round(job.score, 6) for job in jobs.values()}) == 1
+    assert jobs["job-1"].sponsorship_language == "unavailable"
+    assert jobs["job-0"].sponsorship_language == "available"
 
 
 def test_principal_software_engineer_i_is_not_new_grad():
-    assert is_new_grad("Principal Software Engineer I - Snowhouse Foundation", DESCRIPTION) is False
+    assert is_new_grad("Principal Software Engineer I - Snowhouse Foundation", MATCHING) is False

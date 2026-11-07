@@ -1,35 +1,37 @@
 """The single CareerEngine match score (0-100).
 
-One number replaces the old pair of scores (an additive keyword score and a
-separately calibrated "AI Fit"), whose bands did not line up with real data.
-The match score is a weighted average of five components, each already
-normalised to [0, 1], so it reads as what it is: how well a posting fits an
-early-career software search, on level, role, skills, semantics, and
-work-authorization language.
+The score measures one thing: how well a posting matches the candidate's
+experience. It is a weighted average of three components, each already
+normalised to [0, 1]:
 
-Hard eligibility (senior roles, internships, authorization restrictions,
-location) is decided *before* scoring and is never traded off against it.
+- skills:   how many of the technologies the role asks for the candidate knows
+- semantic: similarity between the candidate's profile and the role's
+            responsibilities and requirements
+- role:     how close the job title is to the kinds of roles being targeted
+
+Eligibility (seniority, years required, internships, work-authorization
+restrictions, location) is decided *before* scoring and is never part of the
+number. Whether a role is entry-level, and whether it is friendly to visa
+sponsorship, are shown separately (the dashboard's New Grad and Visa
+indicators) so that the score stays a pure measure of fit.
 """
 
 from dataclasses import dataclass, field
 
-from src.ranking.level import LevelAssessment
 from src.ranking.role_fit import RoleFit
 from src.ranking.skills import SkillMatch
 
 
 WEIGHTS = {
-    "level": 0.30,
+    "skills": 0.40,
+    "semantic": 0.35,
     "role": 0.25,
-    "skills": 0.20,
-    "semantic": 0.15,
-    "authorization": 0.10,
 }
 
 # Sentence-BERT cosine similarity between a profile and a role posting lands in
 # a narrow band in practice; these anchors stretch it to [0, 1].
-SEMANTIC_LOW = 0.12
-SEMANTIC_HIGH = 0.52
+SEMANTIC_LOW = 0.25
+SEMANTIC_HIGH = 0.58
 
 # (minimum score, band name)
 BANDS = [
@@ -51,18 +53,6 @@ def normalise_semantic(cosine: float) -> float:
     return max(0.0, min(1.0, (cosine - SEMANTIC_LOW) / (SEMANTIC_HIGH - SEMANTIC_LOW)))
 
 
-def authorization_component(eligibility_status: str, sponsorship_language: str) -> float:
-    if sponsorship_language == "available":
-        return 1.0
-    if sponsorship_language == "unavailable":
-        return 0.2
-    if eligibility_status == "likely_compatible":
-        return 0.85
-    if eligibility_status == "likely_incompatible":
-        return 0.0
-    return 0.55
-
-
 @dataclass
 class MatchResult:
     score: float
@@ -73,14 +63,11 @@ class MatchResult:
 
 def compute_match(
     *,
-    level: LevelAssessment,
     role: RoleFit,
     skills: SkillMatch,
     semantic_cosine: float | None,
-    eligibility_status: str,
-    sponsorship_language: str,
 ) -> MatchResult:
-    """Combine the five components into a 0-100 score with an explanation.
+    """Combine the three components into a 0-100 score with an explanation.
 
     `semantic_cosine=None` means semantic scoring was unavailable; that
     component then gets neutral credit instead of silently dragging scores down.
@@ -88,27 +75,18 @@ def compute_match(
     semantic = 0.5 if semantic_cosine is None else normalise_semantic(semantic_cosine)
 
     components = {
-        "level": level.level_score,
-        "role": role.score,
         "skills": skills.score,
         "semantic": semantic,
-        "authorization": authorization_component(eligibility_status, sponsorship_language),
+        "role": role.score,
     }
 
     score = 100.0 * sum(WEIGHTS[name] * value for name, value in components.items())
     score = max(0.0, min(100.0, score))
 
-    reasons = [level.summary, f"Role: {role.family}", skills.summary]
+    reasons = [f"Role: {role.family}", skills.summary]
 
     if semantic_cosine is not None:
         label = "high" if semantic >= 0.66 else "moderate" if semantic >= 0.33 else "low"
-        reasons.append(f"Profile similarity: {label}")
-
-    if sponsorship_language == "available":
-        reasons.append("Sponsorship available")
-    elif sponsorship_language == "unavailable":
-        reasons.append("No sponsorship stated")
-    elif eligibility_status == "likely_compatible":
-        reasons.append("Work-authorization friendly")
+        reasons.append(f"Similarity to your experience: {label.title()}")
 
     return MatchResult(score=score, band=band_for(score), components=components, reasons=reasons)

@@ -1,10 +1,13 @@
-"""Score and order the pool of jobs that passed eligibility."""
+"""Score and order the pool of jobs that passed eligibility.
+
+The score reflects fit to the candidate's experience only; level and work
+authorization are gates and dashboard indicators, not score components.
+"""
 
 import hashlib
 import re
 
 from src.models import Job
-from src.ranking.level import LevelAssessment
 from src.ranking.match_score import compute_match
 from src.ranking.role_fit import assess_role_fit
 from src.ranking.semantic_similarity import compute_semantic_similarities
@@ -75,19 +78,15 @@ def rank_jobs(pool: list[Job], candidate_profile: str) -> str:
     semantic_available = status == "available"
 
     for job, cosine in zip(pool, cosines):
-        level: LevelAssessment = job.level_assessment
         role = assess_role_fit(job.title)
         skills = match_skills(
             job_skill_weights(job.title, job.description), skills_of_candidate
         )
 
         result = compute_match(
-            level=level,
             role=role,
             skills=skills,
             semantic_cosine=cosine if semantic_available else None,
-            eligibility_status=job.eligibility_status,
-            sponsorship_language=job.sponsorship_language,
         )
 
         job.semantic_similarity = cosine if semantic_available else 0.0
@@ -99,8 +98,6 @@ def rank_jobs(pool: list[Job], candidate_profile: str) -> str:
         job.profile_fit_reasons = result.reasons
         job.why_matched = result.reasons
 
-    pool.sort(
-        key=lambda job: (-job.score, -job.match_components["level"], job.title),
-    )
+    pool.sort(key=lambda job: (-job.score, -job.match_components["skills"], job.title))
 
     return status

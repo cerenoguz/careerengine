@@ -3,6 +3,7 @@ import os
 from datetime import date
 
 from src.models import Job, SourceHealth
+from src.ranking.match_score import BANDS, band_for
 
 _BG_PAGE = "#EFEFF2"
 _BG_CARD = "#FFFFFF"
@@ -19,6 +20,18 @@ _FONT_STACK = "'Segoe UI', Helvetica, Arial, sans-serif"
 _MONO_STACK = "'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace"
 
 EMAIL_JOB_LIST_LIMIT = 5
+MAX_HIGHLIGHTS = 3
+
+# Reasons that restate the title or say nothing; the card already shows the title.
+_UNINFORMATIVE_REASONS = ("Role:", "Few technologies named", "Skill gaps")
+
+# (background, text) per match band, drawn from the email's existing palette.
+_BAND_COLORS = {
+    "excellent": (_ACCENT, _BUTTON_TEXT),
+    "strong": (_ACCENT_TINT, _ACCENT_INK),
+    "good": ("#F2F2F4", _TEXT_SECONDARY),
+    "fair": ("#F2F2F4", _TEXT_TERTIARY),
+}
 
 def _recipient_name() -> str:
     return os.getenv("CAREERENGINE_RECIPIENT_NAME", "there")
@@ -43,7 +56,7 @@ def format_subject_date(report_date: date | None = None) -> str:
 
 def format_discovery_label(job: Job) -> str:
     if getattr(job, "is_new_discovery", False):
-        return "🚨 New today"
+        return "New today"
 
     first_found_date = getattr(job, "first_found_date", None)
     if first_found_date:
@@ -53,10 +66,47 @@ def format_discovery_label(job: Job) -> str:
 
 
 def format_top_role_line(rank: int, job: Job) -> str:
-    new_marker = " 🚨 New" if getattr(job, "is_new_discovery", False) else ""
+    new_marker = " (New)" if getattr(job, "is_new_discovery", False) else ""
     location = job.location or "Location not listed"
 
     return f"{rank}. {job.company} — {job.title} — {location}{new_marker}"
+
+
+def band_ranges() -> list[tuple[str, str]]:
+    """(band, range label) from highest to lowest, e.g. ("excellent", "80+")."""
+    ranges: list[tuple[str, str]] = []
+    for index, (minimum, name) in enumerate(BANDS):
+        is_lowest = index == len(BANDS) - 1
+        if is_lowest:
+            ranges.append((name, f"below {BANDS[index - 1][0]:.0f}"))
+        else:
+            ranges.append((name, f"{minimum:.0f}+"))
+    return ranges
+
+
+def format_score_legend() -> str:
+    bands = " · ".join(f"{name.title()} {label}" for name, label in band_ranges())
+    return f"Match scores are out of 100: {bands}."
+
+
+SCORE_BASIS = "Each score reflects how closely the role matches your skills and experience."
+
+
+def job_highlights(job: Job) -> list[str]:
+    """The reasons worth showing for a match: matching skills and similarity to the candidate's experience."""
+    return [
+        reason
+        for reason in job.why_matched
+        if not reason.startswith(_UNINFORMATIVE_REASONS)
+    ][:MAX_HIGHLIGHTS]
+
+
+def format_match_summary(job: Job) -> str:
+    return f"Match {job.score:.0f}/100 ({band_for(job.score).title()})"
+
+
+def _job_url(job: Job) -> str | None:
+    return job.url if job.url.startswith(("http://", "https://")) else None
 
 
 def build_daily_email_report(
@@ -86,25 +136,31 @@ def build_daily_email_report(
     remaining_count = len(newly_discovered_jobs) - len(jobs_to_list)
 
     lines = [
-        f"Hi {_recipient_name()},",
+        f"Hello {_recipient_name()},",
         "",
         "Your CareerEngine job queue has been updated.",
+        "",
+        format_score_legend(),
+        SCORE_BASIS,
         "",
         "Open dashboard:",
         dashboard_line,
         "",
-        f"Newly found jobs today: {len(newly_discovered_jobs)}",
+        f"New postings today: {len(newly_discovered_jobs)}",
         "",
-        "Your top matches among today's new jobs:",
+        "Top matches among today's new postings:",
     ]
 
     if jobs_to_list:
         for rank, job in enumerate(jobs_to_list, start=1):
             lines.append(format_top_role_line(rank, job))
+            lines.append("   " + " · ".join([format_match_summary(job), *job_highlights(job)]))
+            if _job_url(job):
+                lines.append(f"   {job.url}")
         if remaining_count > 0:
             lines.append(f"...and {remaining_count} more. See the dashboard for the full list.")
     else:
-        lines.append("No new job postings found today.")
+        lines.append("No new job postings were found today.")
 
     lines.extend(
         [
@@ -127,7 +183,7 @@ def build_daily_email_report(
     lines.extend(
         [
             "",
-            "Best of luck,",
+            "Kind regards,",
             "CareerEngine",
         ]
     )
@@ -141,22 +197,63 @@ def _html_job_row(job: Job, *, is_last: bool) -> str:
     location = html.escape(job.location or "Location not listed")
     border = "" if is_last else f"border-bottom:1px solid {_BORDER};"
 
+    band_bg, band_ink = _BAND_COLORS[band_for(job.score)]
+
+    new_badge = (
+        f'<span style="font-family:{_MONO_STACK};font-size:10px;letter-spacing:0.03em;'
+        f'color:{_ACCENT_INK};background:{_ACCENT_TINT};border-radius:5px;padding:3px 6px;">NEW</span>'
+        if getattr(job, "is_new_discovery", False)
+        else ""
+    )
+
+    highlights = "".join(
+        f'<div style="padding-top:3px;">&bull;&nbsp;{html.escape(reason)}</div>'
+        for reason in job_highlights(job)
+    )
+
+    url = _job_url(job)
+    view_link = (
+        f'<a href="{html.escape(url, quote=True)}" '
+        f'style="color:{_ACCENT_INK};text-decoration:none;font-weight:600;">View role &rarr;</a>'
+        if url
+        else ""
+    )
+
     return f"""
       <tr>
-        <td style="padding:14px 16px;{border}" valign="top">
+        <td style="padding:16px;{border}" valign="top">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
             <tr>
-              <td style="font-family:{_FONT_STACK};font-size:14px;color:{_TEXT_PRIMARY};padding-bottom:2px;">
-                <strong>{company}</strong>
-                <span style="color:{_TEXT_TERTIARY};">&nbsp;&middot;&nbsp;</span>{title}
+              <td width="46" valign="top" style="padding-right:12px;">
+                <div style="background:{band_bg};border-radius:10px;text-align:center;padding:10px 0;">
+                  <div style="font-family:{_MONO_STACK};font-size:18px;font-weight:600;color:{band_ink};line-height:1.1;">{job.score:.0f}</div>
+                </div>
               </td>
-              <td align="right" style="white-space:nowrap;">
-                <span style="font-family:{_MONO_STACK};font-size:10px;letter-spacing:0.03em;color:{_ACCENT_INK};background:{_ACCENT_TINT};border-radius:5px;padding:3px 6px;">NEW</span>
-              </td>
-            </tr>
-            <tr>
-              <td colspan="2" style="font-family:{_FONT_STACK};font-size:12.5px;color:{_TEXT_SECONDARY};">
-                {location}
+              <td valign="top">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                  <tr>
+                    <td style="font-family:{_FONT_STACK};font-size:14px;color:{_TEXT_PRIMARY};padding-bottom:2px;">
+                      <strong>{company}</strong>
+                      <span style="color:{_TEXT_TERTIARY};">&nbsp;&middot;&nbsp;</span>{title}
+                    </td>
+                    <td align="right" valign="top" style="white-space:nowrap;padding-left:8px;">{new_badge}</td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" style="font-family:{_FONT_STACK};font-size:12.5px;color:{_TEXT_SECONDARY};">
+                      {location}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" style="font-family:{_FONT_STACK};font-size:12.5px;line-height:1.5;color:{_TEXT_SECONDARY};padding-top:6px;">
+                      {highlights}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" style="font-family:{_FONT_STACK};font-size:13px;padding-top:10px;">
+                      {view_link}
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
           </table>
@@ -212,7 +309,7 @@ def build_daily_email_html(
         job_list_html = f"""
           <p style="font-family:{_FONT_STACK};font-size:14px;color:{_TEXT_SECONDARY};
                     border:1px solid {_BORDER};border-radius:12px;padding:16px;margin:0;">
-            No new job postings found today.
+            No new job postings were found today.
           </p>"""
 
     if disabled_records:
@@ -225,6 +322,22 @@ def build_daily_email_html(
         disabled_html = f'<ul style="margin:6px 0 0;padding-left:18px;">{disabled_items}</ul>'
     else:
         disabled_html = f'<p style="margin:6px 0 0;">None.</p>'
+
+    legend_chips = "".join(
+        f'<span style="display:inline-block;font-family:{_FONT_STACK};font-size:12px;'
+        f'color:{_BAND_COLORS[name][1]};background:{_BAND_COLORS[name][0]};'
+        f'border-radius:100px;padding:3px 10px;margin:0 6px 6px 0;white-space:nowrap;">'
+        f'<strong>{html.escape(name.title())}</strong>&nbsp;{html.escape(label)}</span>'
+        for name, label in band_ranges()
+    )
+    score_legend_html = f"""
+              <div style="margin:0 0 28px;">
+                <p style="font-family:{_FONT_STACK};font-size:13px;line-height:1.6;color:{_TEXT_SECONDARY};margin:0 0 8px;">
+                  <strong style="color:{_TEXT_PRIMARY};font-weight:600;">Match scores are out of 100.</strong>
+                  {html.escape(SCORE_BASIS)}
+                </p>
+                <div>{legend_chips}</div>
+              </div>"""
 
     cta_button = (
         f'<a href="{dashboard_href}" '
@@ -258,9 +371,10 @@ def build_daily_email_html(
                         color:{_TEXT_PRIMARY};margin:28px 0 12px;">
                 {len(newly_discovered_jobs)} new role{"s" if len(newly_discovered_jobs) != 1 else ""} matched your profile today.
               </p>
-              <p style="font-family:{_FONT_STACK};font-size:15px;line-height:1.6;color:{_TEXT_SECONDARY};margin:0 0 28px;max-width:440px;">
-                Hi {html.escape(_recipient_name())}, your CareerEngine job queue has been updated.
+              <p style="font-family:{_FONT_STACK};font-size:15px;line-height:1.6;color:{_TEXT_SECONDARY};margin:0 0 20px;max-width:440px;">
+                Hello {html.escape(_recipient_name())}, your CareerEngine job queue has been updated.
               </p>
+              {score_legend_html}
 
               {f'<div style="margin-bottom:32px;">{cta_button}</div>' if cta_button else ""}
               {"" if dashboard_configured else f'<p style="font-family:{_FONT_STACK};font-size:13px;color:{_TEXT_TERTIARY};margin:0 0 28px;">Dashboard URL not configured. Set CAREERENGINE_DASHBOARD_URL.</p>'}
@@ -288,7 +402,7 @@ def build_daily_email_html(
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;">
                 <tr>
                   <td style="font-family:{_FONT_STACK};font-size:12px;font-weight:600;letter-spacing:0.03em;
-                             text-transform:uppercase;color:{_TEXT_SECONDARY};padding-right:8px;">Newly found jobs</td>
+                             text-transform:uppercase;color:{_TEXT_SECONDARY};padding-right:8px;">New postings</td>
                   <td style="font-family:{_MONO_STACK};font-size:11px;color:{_ACCENT_INK};background:{_ACCENT_TINT};
                              border-radius:100px;padding:1px 8px;">{len(newly_discovered_jobs)}</td>
                 </tr>
@@ -303,7 +417,7 @@ def build_daily_email_html(
               </p>
 
               <p style="font-family:{_FONT_STACK};font-size:14px;color:{_TEXT_SECONDARY};margin-top:28px;">
-                Best of luck,<br>CareerEngine
+                Kind regards,<br>CareerEngine
               </p>
 
             </td>

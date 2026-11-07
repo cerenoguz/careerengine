@@ -6,6 +6,8 @@ from src.reporting.email_report import (
     build_daily_email_html,
     build_daily_email_report,
     format_report_date,
+    band_ranges,
+    format_score_legend,
     format_subject_date,
     format_top_role_line,
 )
@@ -65,7 +67,7 @@ def test_format_top_role_line_marks_new_jobs():
 
     assert (
         format_top_role_line(1, job)
-        == "1. Company 1 — Software Engineer 1 — Boston, MA 🚨 New"
+        == "1. Company 1 — Software Engineer 1 — Boston, MA (New)"
     )
 
 
@@ -87,15 +89,15 @@ def test_daily_email_report_uses_lightweight_dashboard_reminder(monkeypatch):
         dashboard_url="https://careerengine.example.com",
     )
 
-    assert report.startswith("Hi there,")
+    assert report.startswith("Hello there,")
     assert "Your CareerEngine job queue has been updated." in report
     assert "Open dashboard:\nhttps://careerengine.example.com" in report
-    assert "Newly found jobs today: 2" in report
-    assert "Your top matches among today's new jobs:" in report
+    assert "New postings today: 2" in report
+    assert "Top matches among today's new postings:" in report
     assert "1. Company 1 — Software Engineer 1 — Boston, MA" in report
     assert "2. Company 2 — Software Engineer 2 — Boston, MA" in report
     assert "Active qualified opportunities ranked: 40" in report
-    assert "Best of luck,\nCareerEngine" in report
+    assert "Kind regards,\nCareerEngine" in report
 
     assert "Score Guide:" not in report
     assert "Description Similarity Guide:" not in report
@@ -108,17 +110,46 @@ def test_daily_email_report_caps_list_at_top_five_by_fit():
 
     report = build_report(jobs)
 
-    assert "Newly found jobs today: 6" in report
+    assert "New postings today: 6" in report
     assert "1. Company 1 — Software Engineer 1 — Boston, MA" in report
     assert "5. Company 5 — Software Engineer 5 — Boston, MA" in report
     assert "6. Company 6 — Software Engineer 6 — Boston, MA" not in report
     assert "...and 1 more. See the dashboard for the full list." in report
 
 
+def test_band_ranges_come_from_the_ranking_bands():
+    assert band_ranges() == [
+        ("excellent", "80+"),
+        ("strong", "70+"),
+        ("good", "60+"),
+        ("fair", "below 60"),
+    ]
+
+
+def test_plain_text_email_explains_the_score_right_below_the_greeting():
+    report = build_report([make_job(1, is_new_discovery=True)])
+
+    legend = "Match scores are out of 100: Excellent 80+ · Strong 70+ · Good 60+ · Fair below 60."
+    assert format_score_legend() == legend
+    assert legend in report
+    assert report.index("Your CareerEngine job queue has been updated.") < report.index(legend)
+    assert report.index(legend) < report.index("Open dashboard:")
+
+
+def test_html_email_shows_score_ranges_below_the_greeting():
+    html_report = build_html_report([make_job(1, is_new_discovery=True)])
+
+    assert "Match scores are out of 100." in html_report
+    for label in ("Excellent</strong>&nbsp;80+", "Strong</strong>&nbsp;70+", "Good</strong>&nbsp;60+", "Fair</strong>&nbsp;below 60"):
+        assert label in html_report
+    assert html_report.index("your CareerEngine job queue has been updated") < html_report.index("Match scores are out of 100.")
+    assert html_report.index("Match scores are out of 100.") < html_report.index("View dashboard")
+
+
 def test_daily_email_report_handles_no_new_jobs():
     report = build_report([], total_jobs_collected=0, qualified_jobs=0)
 
-    assert "No new job postings found today." in report
+    assert "No new job postings were found today." in report
 
 
 def test_daily_email_report_uses_configured_recipient_name(monkeypatch):
@@ -126,8 +157,8 @@ def test_daily_email_report_uses_configured_recipient_name(monkeypatch):
 
     report = build_report([], total_jobs_collected=0, qualified_jobs=0)
 
-    assert report.startswith("Hi Alex,")
-    assert "Best of luck,\nCareerEngine" in report
+    assert report.startswith("Hello Alex,")
+    assert "Kind regards,\nCareerEngine" in report
 
 
 def test_daily_email_report_summarizes_successful_and_disabled_sources():
@@ -228,7 +259,7 @@ def test_daily_email_html_caps_list_at_top_five_by_fit():
 def test_daily_email_html_handles_no_new_jobs():
     html_report = build_html_report([], total_jobs_collected=0, qualified_jobs=0)
 
-    assert "No new job postings found today." in html_report
+    assert "No new job postings were found today." in html_report
 
 
 def test_daily_email_html_lists_disabled_sources():

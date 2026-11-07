@@ -61,3 +61,13 @@ def test_generic_internship_reference_does_not_reclassify_full_time_role():
     )
 
     assert result.internship_signal == "no"
+
+
+def test_visa_sponsorship_not_available_is_detected_as_unavailable():
+    result = evaluate_job_description(
+        "Software Engineer",
+        "Visa sponsorship is not available for this role.",
+    )
+
+    assert result.sponsorship_language == "unavailable"
+    assert result.hard_no is False

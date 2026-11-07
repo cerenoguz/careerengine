@@ -48,9 +48,9 @@ def test_many_locations_are_summarised():
 
 def test_rank_jobs_orders_best_first_and_fills_every_field():
     jobs = [
-        make_job("plain", "Software Engineer"),
-        make_job("grad", "New Grad Software Engineer"),
-        make_job("level2", "Software Engineer II"),
+        make_job("poor", "Software Engineer", description="Build Scala, Kafka and Spark pipelines."),
+        make_job("good", "Backend Engineer", description=DESCRIPTION),
+        make_job("mid", "QA Engineer", description=DESCRIPTION),
     ]
     enrich_jobs(jobs)
     assert all(is_recommendable_job(job) for job in jobs)
@@ -58,13 +58,13 @@ def test_rank_jobs_orders_best_first_and_fills_every_field():
     status = rank_jobs(jobs, PROFILE)
 
     assert status in {"disabled", "available", "unavailable"}
-    assert [job.id for job in jobs][0] == "grad"
+    assert [job.id for job in jobs][0] == "good"
     assert jobs[0].score > jobs[1].score >= jobs[2].score
     for job in jobs:
         assert 0.0 <= job.score <= 100.0
         assert job.profile_fit_score == job.score
         assert job.profile_fit_band in {"excellent", "strong", "good", "fair"}
-        assert set(job.match_components) == {"level", "role", "skills", "semantic", "authorization"}
+        assert set(job.match_components) == {"skills", "semantic", "role"}
         assert job.why_matched
 
 

@@ -77,7 +77,7 @@ def test_job_is_still_new_in_the_email_after_a_failed_send_is_retried(pipeline):
     pipeline.setattr(main_module, "send_email_report", successful_send)
     main_module.main()
 
-    assert "Newly found jobs today: 1" in sent_bodies[0]
+    assert "New postings today: 1" in sent_bodies[0]
 
 
 def test_successful_send_marks_jobs_as_discovered(pipeline):

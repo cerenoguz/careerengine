@@ -6,7 +6,7 @@ from src.models import Job
 
 def format_discovery_label(job: Job) -> str:
     if job.is_new_discovery:
-        return "New 🚨"
+        return "New"
 
     if job.first_found_date:
         found_date = date.fromisoformat(job.first_found_date)
