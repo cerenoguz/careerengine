@@ -3,8 +3,12 @@ import re
 from pathlib import Path
 
 from src.models import Job
-from src.ranking.profile_fit import LOWER_PRIORITY_THRESHOLD, STRONG_THRESHOLD
+from src.ranking.match_score import BANDS
 
+
+_THRESHOLDS = {name: minimum for minimum, name in BANDS}
+GOOD_THRESHOLD = _THRESHOLDS["good"]
+STRONG_THRESHOLD = _THRESHOLDS["strong"]
 
 REVIEW_COLUMNS = [
     "job_id",
@@ -14,10 +18,11 @@ REVIEW_COLUMNS = [
     "location",
     "url",
     "opportunity_type",
-    "current_score",
-    "profile_fit_score",
-    "profile_fit_band",
-    "lexical_similarity",
+    "match_score",
+    "match_band",
+    "level",
+    "role_family",
+    "match_components",
     "semantic_similarity",
     "experience_fit",
     "required_years_min",
@@ -71,10 +76,13 @@ def save_semantic_review_queue(
                     "location": job.location,
                     "url": job.url,
                     "opportunity_type": _opportunity_type(job),
-                    "current_score": f"{job.score:.2f}",
-                    "profile_fit_score": f"{job.profile_fit_score:.1f}",
-                    "profile_fit_band": job.profile_fit_band,
-                    "lexical_similarity": f"{job.description_similarity:.3f}",
+                    "match_score": f"{job.score:.1f}",
+                    "match_band": job.profile_fit_band,
+                    "level": job.level,
+                    "role_family": job.role_family,
+                    "match_components": " | ".join(
+                        f"{name} {value:.2f}" for name, value in job.match_components.items()
+                    ),
                     "semantic_similarity": f"{job.semantic_similarity:.3f}",
                     "experience_fit": job.experience_fit,
                     "required_years_min": (
@@ -115,42 +123,30 @@ def _select_review_jobs(
 
     buckets = [
         (
-            "profile_fit_top",
-            sorted(jobs, key=lambda job: job.profile_fit_score, reverse=True),
+            "match_top",
+            sorted(jobs, key=lambda job: job.score, reverse=True),
             15,
         ),
         (
             "early_career",
             sorted(
                 [job for job in jobs if job.is_internship or job.is_new_grad],
-                key=lambda job: (job.profile_fit_score, job.score),
+                key=lambda job: job.score,
                 reverse=True,
             ),
             12,
         ),
         (
-            "profile_fit_borderline",
+            "match_borderline",
             sorted(
                 [
                     job for job in jobs
-                    if LOWER_PRIORITY_THRESHOLD <= job.profile_fit_score < STRONG_THRESHOLD
+                    if GOOD_THRESHOLD <= job.score < STRONG_THRESHOLD
                 ],
-                key=lambda job: job.profile_fit_score,
+                key=lambda job: job.score,
                 reverse=True,
             ),
             12,
-        ),
-        (
-            "rule_ai_disagreement",
-            sorted(
-                jobs,
-                key=lambda job: (
-                    job.profile_fit_score
-                    - min(max(job.score, 0.0), 100.0)
-                ),
-                reverse=True,
-            ),
-            11,
         ),
     ]
 

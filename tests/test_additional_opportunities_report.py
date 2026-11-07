@@ -15,9 +15,9 @@ def make_job() -> Job:
         date_posted=None,
         source="test",
         eligibility_status="likely_compatible",
-        description_similarity=0.08,
         score=71.5,
-        why_matched=["Role match: software engineer (+10)"],
+        profile_fit_band="strong",
+        why_matched=["Role: software engineer"],
     )
 
 
@@ -61,7 +61,7 @@ def test_attachment_supports_global_rank_start(tmp_path):
     content = path.read_text(encoding="utf-8")
 
     assert "#31. Test Company — Software Engineer" in content
-    assert "CareerEngine score: 71.50" in content
+    assert "Match: 72 / 100 — Strong" in content
 
 
 def test_attachment_shows_new_discovery_label(tmp_path):

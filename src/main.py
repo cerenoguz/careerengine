@@ -8,24 +8,19 @@ import yaml
 
 from src.collectors.factory import collect_jobs_for_company
 from src.models import Job, SourceHealth
-from src.ranking.description_similarity import compute_description_similarity
-from src.ranking.semantic_similarity import compute_semantic_similarities
-from src.ranking.profile_fit import (
-    calculate_profile_fit_score,
-    profile_fit_ranking_adjustment,
-)
-from src.ranking.match_interpretation import get_description_similarity_label, get_match_strength_label
+from src.ranking.level import LevelAssessment, assess_level
+from src.ranking.match_interpretation import get_match_strength_label
 from src.ranking.opt_signals import classify_eligibility
+from src.ranking.role_fit import assess_role_fit
+from src.ranking.pipeline import dedupe_jobs, rank_jobs
 from src.ranking.structured_evaluator import evaluate_job_description
 from src.ranking.rule_score import (
     classify_cs_relevance,
     is_excluded_role,
-    has_senior_title_blocker,
-    has_unrealistic_senior_title,
     is_internship,
     is_new_grad,
-    score_job,
 )
+from src.ranking.text_clean import clean_description
 from src.reporting.email_report import (
     build_daily_email_html,
     build_daily_email_report,
@@ -33,7 +28,7 @@ from src.reporting.email_report import (
 )
 from src.reporting.email_sender import send_email_report
 from src.reporting.report_writer import save_daily_report
-from src.reporting.semantic_shadow_report import save_semantic_shadow_report
+from src.reporting.match_report import save_match_report
 from src.reporting.semantic_review_queue import save_semantic_review_queue
 from src.reporting.additional_opportunities_report import save_additional_opportunities_report
 from src.dashboard.supabase_sync import sync_jobs_to_supabase
@@ -51,12 +46,10 @@ from src.storage.database import (
 CONFIG_PATH = Path("config/companies.yaml")
 CANDIDATE_PROFILE_PATH = Path("config/candidate_profile.txt")
 ADDITIONAL_OPPORTUNITIES_REPORT_PATH = Path("reports/additional_qualified_opportunities.txt")
-SEMANTIC_SHADOW_REPORT_PATH = Path("reports/semantic_shadow_report.txt")
+MATCH_REPORT_PATH = Path("reports/match_report.txt")
 SEMANTIC_REVIEW_QUEUE_PATH = Path("reports/semantic_review_queue.csv")
 
 MAX_RECOMMENDATIONS = 25
-DESCRIPTION_SIMILARITY_WEIGHT = 30
-SHOW_DESCRIPTION_SIMILARITY_DEBUG = False
 SHOW_REJECTION_DEBUG = False
 
 RECOMMENDABLE_CS_STATUSES = {
@@ -261,56 +254,41 @@ def targets_excluded_grad_year(title: str) -> bool:
     return bool(EXCLUDED_GRAD_YEAR_PATTERN.search(title))
 
 
+def level_of(job: Job) -> LevelAssessment:
+    """The job's level assessment, computed on demand for hand-built jobs."""
+    if job.level_assessment is None:
+        job.level_assessment = assess_level(
+            job.title, clean_description(job.description)
+        )
+    return job.level_assessment
+
+
 def is_recommendable_job(job: Job) -> bool:
     """
-    Decide whether a job should appear in the final recommendation list.
+    Decide whether a job is eligible to be ranked at all.
 
-    A job must:
+    Eligibility is a set of hard gates, applied before any scoring and never
+    traded off against it. A job must:
     - not be in an excluded role category based on title
-    - not be an internship, and not targeting the excluded grad year (2027)
-    - have a positive score
-    - not be likely incompatible with OPT/work authorization
-    - be clearly or defensibly related to CS/Math based on title + description
+    - not be an internship, and not target the excluded grad year (2027)
+    - not carry a hard work-authorization restriction
+    - pass the level gate: no senior-level title (a junior-sounding
+      description never overrides it) and no requirement of more than
+      `MAX_REQUIRED_YEARS` years of experience
+    - have an engineering or data job title
     - be U.S.-based or U.S.-remote
-    - be realistic for a new-grad / early-career candidate: no senior/staff/
-      principal/lead/manager-style title, unless the description is clearly
-      junior-friendly (title_description_conflict)
+    - be clearly or defensibly related to CS/Math based on title + description
     """
+    return not get_rejection_reasons(job)
+
+
+def get_rejection_reasons(job: Job) -> list[str]:
+    """Explain why a job did not pass the eligibility gates (empty if it did)."""
+    rejection_reasons: list[str] = []
+
     # Excluded role category should be title-based.
     # The description may mention sales/marketing/support as partner teams,
     # but that does not make the role itself a sales/marketing/support job.
-    if is_excluded_role(job.title, ""):
-        return False
-
-    if job.is_internship or is_internship(job.title, ""):
-        return False
-
-    if targets_excluded_grad_year(job.title):
-        return False
-
-    if job.score <= 0:
-        return False
-
-    if job.hard_no:
-        return False
-
-    if has_unrealistic_senior_title(job.title) and not job.title_description_conflict:
-        return False
-
-    if not is_us_opt_location(job.location):
-        return False
-
-    cs_relevance_status, _ = classify_cs_relevance(job.title, job.description)
-
-    return cs_relevance_status in RECOMMENDABLE_CS_STATUSES
-
-def get_rejection_reasons(job: Job) -> list[str]:
-    """
-    Explain why a job did not pass the final recommendation filter.
-    This is diagnostic only; it does not change ranking or filtering.
-    """
-    rejection_reasons: list[str] = []
-
     if is_excluded_role(job.title, ""):
         rejection_reasons.append("excluded role category based on title")
 
@@ -320,14 +298,15 @@ def get_rejection_reasons(job: Job) -> list[str]:
     if targets_excluded_grad_year(job.title):
         rejection_reasons.append("targets excluded grad year (2027)")
 
-    if job.score <= 0:
-        rejection_reasons.append("score is not positive")
-
     if job.hard_no:
         rejection_reasons.append(job.evaluation_reason or "explicit hard requirement")
 
-    if has_unrealistic_senior_title(job.title) and not job.title_description_conflict:
-        rejection_reasons.append("senior-level title without junior-friendly evidence")
+    level = level_of(job)
+    if level.gate:
+        rejection_reasons.append(f"not entry-level: {level.gate_reason}")
+
+    if assess_role_fit(job.title).score == 0.0:
+        rejection_reasons.append("title is not an engineering or data role")
 
     if not is_us_opt_location(job.location):
         rejection_reasons.append("location is not clearly U.S./OPT-compatible")
@@ -339,59 +318,61 @@ def get_rejection_reasons(job: Job) -> list[str]:
     return rejection_reasons
 
 
-def print_rejection_debug(ranked_jobs: list[Job]) -> None:
-    """
-    Print the highest-scoring rejected jobs so we can tune filters safely.
-    """
+def print_rejection_debug(all_jobs: list[Job]) -> None:
+    """Print a sample of rejected jobs and why, so the gates can be tuned safely."""
     if not SHOW_REJECTION_DEBUG:
         return
 
-    rejected_jobs = [
-        job for job in ranked_jobs
-        if job.score > 0 and not is_recommendable_job(job)
-    ]
-
     print()
-    print("TOP REJECTED JOBS DEBUG")
-    print("-----------------------")
+    print("REJECTED JOBS DEBUG")
+    print("-------------------")
 
-    if not rejected_jobs:
-        print("No high-scoring rejected jobs found.")
+    rejected = [(job, get_rejection_reasons(job)) for job in all_jobs]
+    rejected = [(job, reasons) for job, reasons in rejected if reasons]
+
+    if not rejected:
+        print("No rejected jobs found.")
         return
 
-    for job in rejected_jobs[:15]:
-        rejection_reasons = get_rejection_reasons(job)
-
-        print(
-            f"{job.company} | Match: {get_match_strength_label(job.score)} | "
-            f"Score: {job.score:.2f} | {job.title} | {job.location}"
-        )
-        print(f"Eligibility: {job.eligibility_status}")
-        print(
-            f"Description similarity: {job.description_similarity:.3f} "
-            f"({get_description_similarity_label(job.description_similarity)})"
-        )
+    for job, reasons in rejected[:15]:
+        print(f"{job.company} | {job.title} | {job.location}")
         print("Rejected because:")
-
-        for reason in rejection_reasons:
+        for reason in reasons:
             print(f"  - {reason}")
-
         print(job.url)
         print()
 
-def enrich_jobs(jobs: list[Job], candidate_profile: str) -> None:
+
+def enrich_jobs(jobs: list[Job]) -> None:
     """
-    Add classification, rule-based score, and description-only similarity score
-    to each collected job.
+    Clean each description and attach the signals the eligibility gates and the
+    match score are built from: level, work authorization, sponsorship language
+    and internship / new-grad flags.
     """
     for job in jobs:
+        # Greenhouse and others deliver HTML-escaped markup; every downstream
+        # reader (regexes, embeddings, reports) wants plain text.
+        job.description = clean_description(job.description)
         job_text = f"{job.title} {job.description}"
+
         evaluation = evaluate_job_description(job.title, job.description)
+        level = assess_level(job.title, job.description)
+
+        job.level_assessment = level
+        job.level = level.level
+        job.level_gate_reason = level.gate_reason
+        job.required_years_min = level.years_required
+        job.years_requirement_type = "required" if level.years_required is not None else "unclear"
+        job.experience_fit = (
+            "unlikely" if level.gate
+            else "strong" if level.level == "entry"
+            else "possible" if level.level in {"junior_mid", "mid"}
+            else "unclear"
+        )
+        job.evaluation_reason = level.summary
+        job.evaluation_evidence = [*level.entry_signals, *level.senior_signals]
 
         job.hard_no = evaluation.hard_no
-        job.required_years_min = evaluation.required_years_min
-        job.required_years_max = evaluation.required_years_max
-        job.years_requirement_type = evaluation.years_requirement_type
         job.new_grad_signal = evaluation.new_grad_signal
         job.internship_signal = evaluation.internship_signal
         job.citizenship_required = evaluation.citizenship_required
@@ -399,11 +380,9 @@ def enrich_jobs(jobs: list[Job], candidate_profile: str) -> None:
         job.clearance_required = evaluation.clearance_required
         job.export_control_restriction = evaluation.export_control_restriction
         job.sponsorship_language = evaluation.sponsorship_language
-        job.experience_fit = evaluation.experience_fit
-        job.title_description_conflict = evaluation.title_description_conflict
-        job.evaluation_reason = evaluation.reason
-        job.evaluation_evidence = evaluation.evidence
-        job.evaluation_confidence = evaluation.confidence
+        if evaluation.hard_no:
+            job.evaluation_reason = evaluation.reason
+            job.evaluation_evidence = evaluation.evidence
 
         legacy_status, _positive_signals, _negative_signals = classify_eligibility(job_text)
 
@@ -419,59 +398,14 @@ def enrich_jobs(jobs: list[Job], candidate_profile: str) -> None:
         else:
             job.eligibility_status = "unclear"
 
-        title_is_internship = is_internship(job.title, job.description)
-        title_is_new_grad = is_new_grad(job.title, job.description)
-
         job.is_internship = (
-            title_is_internship
+            is_internship(job.title, job.description)
             or evaluation.internship_signal == "yes"
         )
         job.is_new_grad = (
-            title_is_new_grad
+            is_new_grad(job.title, job.description)
             or evaluation.new_grad_signal == "yes"
         )
-
-        score, reasons = score_job(
-            title=job.title,
-            description=job.description,
-            eligibility_status=job.eligibility_status,
-        )
-
-        if evaluation.internship_signal == "yes" and not title_is_internship:
-            score += 20
-            reasons.append("Description confirms internship/co-op eligibility (+20)")
-
-        if evaluation.new_grad_signal == "yes" and not title_is_new_grad:
-            score += 22
-            reasons.append("Description confirms new-grad/early-career eligibility (+22)")
-
-        if evaluation.required_years_min in {3, 4}:
-            score -= 15
-            reasons.append("3–4 years required: controlled experience-gap demotion (-15)")
-
-        if evaluation.sponsorship_language == "unavailable":
-            reasons.append("Sponsorship unavailable; not treated as an OPT hard exclusion")
-
-        reasons.append(
-            f"Experience evaluation: {evaluation.experience_fit} — "
-            f"{evaluation.reason}"
-        )
-
-        description_similarity = compute_description_similarity(
-            candidate_profile=candidate_profile,
-            job_description=job.description,
-        )
-
-        similarity_points = description_similarity * DESCRIPTION_SIMILARITY_WEIGHT
-
-        score += similarity_points
-        reasons.append(
-            f"Description similarity: {description_similarity:.3f} (+{similarity_points:.1f})"
-        )
-
-        job.description_similarity = description_similarity
-        job.score = score
-        job.why_matched = reasons
 
 
 def print_source_health(health_records: list[SourceHealth]) -> None:
@@ -485,56 +419,6 @@ def print_source_health(health_records: list[SourceHealth]) -> None:
         )
 
 
-def print_summary(
-    all_jobs: list[Job],
-    health_records: list[SourceHealth],
-    recommended_jobs: list[Job],
-    deduplicated_recommended_jobs: list[Job],
-    new_recommended_jobs: list[Job],
-) -> None:
-    # Count excluded roles by title only.
-    # This avoids excluding valid engineering jobs just because their descriptions
-    # mention sales, marketing, support, recruiting, etc.
-    excluded_count = sum(
-        1 for job in all_jobs if is_excluded_role(job.title, "")
-    )
-
-    cs_relevant_count = sum(
-        1
-        for job in all_jobs
-        if classify_cs_relevance(job.title, job.description)[0] in RECOMMENDABLE_CS_STATUSES
-    )
-
-    us_location_count = sum(
-        1 for job in all_jobs if is_us_opt_location(job.location)
-    )
-
-    unrealistic_seniority_count = sum(
-        1 for job in all_jobs if has_unrealistic_seniority(job.title, job.description)
-    )
-
-    duplicate_recommendations_removed = (
-        len(recommended_jobs) - len(deduplicated_recommended_jobs)
-    )
-
-    recommendations_hidden_by_email_cap = (
-        len(deduplicated_recommended_jobs) - len(new_recommended_jobs)
-    )
-
-    print()
-    print("SUMMARY")
-    print("-------")
-    print(f"Companies checked: {len(health_records)}")
-    print(f"Total jobs collected: {len(all_jobs)}")
-    print(f"Excluded role-category jobs removed: {excluded_count}")
-    print(f"CS/Math OPT-relevant jobs found: {cs_relevant_count}")
-    print(f"U.S./OPT-location jobs found: {us_location_count}")
-    print(f"Unrealistic seniority jobs removed: {unrealistic_seniority_count}")
-    print(f"Recommended jobs before deduplication: {len(recommended_jobs)}")
-    print(f"Duplicate recommendations removed: {duplicate_recommendations_removed}")
-    print(f"Additional qualified opportunities attached: {recommendations_hidden_by_email_cap}")
-    print(f"New recommended jobs: {len(new_recommended_jobs)}")
-
 def print_recommended_jobs(recommended_jobs: list[Job]) -> None:
     print()
     print("TOP RANKED JOBS")
@@ -545,96 +429,23 @@ def print_recommended_jobs(recommended_jobs: list[Job]) -> None:
         return
 
     for job in recommended_jobs[:MAX_RECOMMENDATIONS]:
-        cs_relevance_status, cs_relevance_reasons = classify_cs_relevance(
-            job.title,
-            job.description,
-        )
-
         print(
-            f"{job.company} | Match: {get_match_strength_label(job.score)} | "
-            f"Score: {job.score:.2f} | {job.title} | {job.location}"
+            f"{job.company} | Match: {job.score:.0f}/100 "
+            f"({get_match_strength_label(job.score)}) | "
+            f"{job.title} | {job.location}"
         )
-        print(
-            f"Description similarity: {job.description_similarity:.3f} "
-            f"({get_description_similarity_label(job.description_similarity)})"
+        components = " | ".join(
+            f"{name} {value:.2f}" for name, value in job.match_components.items()
         )
-        print(f"Eligibility: {job.eligibility_status}")
-        print(f"CS/Math relevance: {cs_relevance_status}")
-        print(f"Internship: {job.is_internship} | New Grad: {job.is_new_grad}")
+        print(f"Components: {components}")
+        print(f"Level: {job.level} | Eligibility: {job.eligibility_status}")
 
         print("Why matched:")
         for reason in job.why_matched[:8]:
             print(f"  - {reason}")
 
-        print("CS/Math relevance notes:")
-        for reason in cs_relevance_reasons:
-            print(f"  - {reason}")
-
         print(job.url)
         print()
-
-
-def print_description_similarity_debug(all_jobs: list[Job]) -> None:
-    """
-    Optional diagnostic output to confirm description-only similarity is working.
-    """
-    if not SHOW_DESCRIPTION_SIMILARITY_DEBUG:
-        return
-
-    print()
-    print("TOP RAW JOBS BY DESCRIPTION SIMILARITY")
-    print("--------------------------------------")
-
-    similarity_ranked_jobs = sorted(
-        all_jobs,
-        key=lambda job: job.description_similarity,
-        reverse=True,
-    )
-
-    for job in similarity_ranked_jobs[:10]:
-        print(
-            f"{job.company} | Similarity: {job.description_similarity:.3f} | "
-            f"Score: {job.score:.2f} | {job.title} | {job.location}"
-        )
-
-def build_duplicate_jobs_report(duplicate_jobs: list[Job]) -> str:
-    """
-    Build a text report of jobs that passed all filters but were already seen.
-    """
-    lines = [
-        "CareerEngine Duplicate Recommendations",
-        "======================================",
-        "",
-        f"Duplicate jobs found: {len(duplicate_jobs)}",
-        "",
-    ]
-
-    if not duplicate_jobs:
-        lines.append("No duplicate recommended jobs found.")
-        return "\n".join(lines)
-
-    for index, job in enumerate(duplicate_jobs, start=1):
-        lines.extend(
-            [
-                f"{index}. {job.company} — {job.title}",
-                f"Location: {job.location}",
-                f"Score: {job.score:.2f}",
-                f"Description similarity: {job.description_similarity:.3f}",
-                f"Eligibility: {job.eligibility_status}",
-                f"Internship: {job.is_internship}",
-                f"New grad: {job.is_new_grad}",
-                f"URL: {job.url}",
-                "Why matched:",
-            ]
-        )
-
-        for reason in job.why_matched[:8]:
-            lines.append(f"- {reason}")
-
-        lines.append("")
-
-    return "\n".join(lines)
-
 
 
 def get_run_context() -> tuple[str, str]:
@@ -663,76 +474,26 @@ def main() -> None:
 
     for company_config in company_configs:
         jobs, health = collect_jobs_for_company(company_config)
-        enrich_jobs(jobs, candidate_profile)
+        enrich_jobs(jobs)
         all_jobs.extend(jobs)
         health_records.append(health)
 
-    ranked_jobs = sorted(all_jobs, key=lambda job: job.score, reverse=True)
+    eligible_jobs = [job for job in all_jobs if is_recommendable_job(job)]
+    recommended_jobs = dedupe_jobs(eligible_jobs)
+    semantic_status = rank_jobs(recommended_jobs, candidate_profile)
 
-    recommended_jobs = [
-        job for job in ranked_jobs
-        if is_recommendable_job(job)
-    ]
-
-    semantic_scores, semantic_shadow_status = compute_semantic_similarities(
-        candidate_profile,
-        [job.description or "" for job in recommended_jobs],
-    )
-
-    for job, semantic_score in zip(recommended_jobs, semantic_scores):
-        job.semantic_similarity = semantic_score
-
-        profile_fit = calculate_profile_fit_score(
-            semantic_similarity=semantic_score,
-            description_similarity=job.description_similarity,
-            is_internship=job.is_internship,
-            is_new_grad=job.is_new_grad,
-            required_years_min=job.required_years_min,
-            required_years_max=job.required_years_max,
-            years_requirement_type=job.years_requirement_type,
-            senior_title_signal=has_senior_title_blocker(job.title),
-            title_description_conflict=(
-                "Junior-friendly description overrides senior-looking title"
-                in job.evaluation_reason
-                or (
-                    job.is_new_grad
-                    and any(
-                        marker in job.title.lower()
-                        for marker in ["senior", "staff", "principal", "lead", "engineer ii", "(l2)", " l2"]
-                    )
-                )
-            ),
-        )
-
-        job.profile_fit_score = profile_fit.score
-        job.profile_fit_band = profile_fit.band
-        job.profile_fit_reasons = profile_fit.reasons
-
-        if semantic_shadow_status == "available":
-            ranking_adjustment, ranking_reason = profile_fit_ranking_adjustment(
-                job.profile_fit_score
-            )
-            job.score += ranking_adjustment
-            job.why_matched.append(ranking_reason)
-
-    if semantic_shadow_status == "available":
-        recommended_jobs.sort(
-            key=lambda job: (job.score, job.profile_fit_score),
-            reverse=True,
-        )
-
-    semantic_shadow_report_path = save_semantic_shadow_report(
-        path=SEMANTIC_SHADOW_REPORT_PATH,
+    match_report_path = save_match_report(
+        path=MATCH_REPORT_PATH,
         jobs=recommended_jobs,
-        status=semantic_shadow_status,
+        semantic_status=semantic_status,
     )
-    print(f"Semantic shadow status: {semantic_shadow_status}")
-    print(f"Saved semantic shadow report to: {semantic_shadow_report_path}")
+    print(f"Semantic scoring status: {semantic_status}")
+    print(f"Saved match report to: {match_report_path}")
 
     semantic_review_queue_path = save_semantic_review_queue(
         path=SEMANTIC_REVIEW_QUEUE_PATH,
         jobs=recommended_jobs,
-        status=semantic_shadow_status,
+        status=semantic_status,
     )
     print(f"Saved semantic review queue to: {semantic_review_queue_path}")
 
@@ -772,8 +533,7 @@ def main() -> None:
     )
 
     print_recommended_jobs(top_ranked_jobs)
-    print_description_similarity_debug(all_jobs)
-    print_rejection_debug(ranked_jobs)
+    print_rejection_debug(all_jobs)
 
     email_kwargs = dict(
         health_records=health_records,

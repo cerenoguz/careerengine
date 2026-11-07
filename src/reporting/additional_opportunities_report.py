@@ -33,10 +33,7 @@ def save_additional_opportunities_report(
             "These are active qualified opportunities that did not make today's "
             "top-25 email body."
         ),
-        (
-            "They are ranked below the email list using the same current "
-            "CareerEngine scoring system."
-        ),
+        "They are ranked below the email list using the same match score.",
         "Ranks continue from the main email report.",
         "",
         f"Count: {len(additional_recommendations)}",
@@ -52,12 +49,7 @@ def save_additional_opportunities_report(
         lines.extend([
             f"#{rank}. {job.company} — {job.title} [{format_discovery_label(job)}]",
             f"Location: {job.location}",
-            f"CareerEngine score: {job.score:.2f}",
-            (
-                f"AI profile fit: {job.profile_fit_score:.1f} / 100 "
-                f"— {job.profile_fit_band.replace('_', ' ').title()}"
-            ),
-            f"Profile wording alignment: {job.description_similarity:.3f}",
+            f"Match: {job.score:.0f} / 100 — {job.profile_fit_band.title()}",
             f"Work authorization review: {job.eligibility_status}",
             f"Application link: {job.url}",
             "Why CareerEngine selected this role:",

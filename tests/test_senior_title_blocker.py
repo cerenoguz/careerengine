@@ -2,9 +2,7 @@ import pytest
 
 from src.main import enrich_jobs, get_rejection_reasons, is_recommendable_job
 from src.models import Job
-from src.ranking.rule_score import has_unrealistic_senior_title
-
-PROFILE = "Python backend engineer with SQL and distributed systems experience."
+from src.ranking.level import has_senior_title
 
 GENERIC_DESCRIPTION = (
     "Build Python and C++ backend services and REST APIs on cloud infrastructure "
@@ -30,7 +28,7 @@ def enriched_job(title: str, description: str = GENERIC_DESCRIPTION) -> Job:
         date_posted=None,
         source="test",
     )
-    enrich_jobs([job], PROFILE)
+    enrich_jobs([job])
     return job
 
 
@@ -38,27 +36,38 @@ def enriched_job(title: str, description: str = GENERIC_DESCRIPTION) -> Job:
     "title",
     [
         "Senior Software Engineer - Marketplace",
+        "Sr. Software Engineer",
+        "Sr Backend Engineer",
         "Senior Embedded Software Engineer",
         "Senior Machine Learning Engineer, Discovery Recommendations",
         "Staff Software Engineer",
         "Principal Backend Engineer",
         "Lead Software Engineer",
         "Engineering Manager, Platform",
+        "Software Engineer III",
+        "Software Engineer IV, Payments",
+        "Software Engineer 5",
+        "Software Engineer (L5)",
+        "Director of Engineering",
     ],
 )
 def test_senior_titles_are_not_recommended(title):
     job = enriched_job(title)
 
-    assert job.score > 0  # the old filter let these through on score alone
     assert is_recommendable_job(job) is False
-    assert "senior-level title without junior-friendly evidence" in get_rejection_reasons(job)
+    assert any(reason.startswith("not entry-level") for reason in get_rejection_reasons(job))
 
 
-def test_senior_title_with_junior_friendly_description_is_still_recommended():
-    job = enriched_job("Senior Software Engineer", JUNIOR_FRIENDLY_DESCRIPTION)
+@pytest.mark.parametrize(
+    "title",
+    ["Senior Software Engineer", "Software Engineer III", "Staff Backend Engineer"],
+)
+def test_junior_friendly_description_never_overrides_a_senior_title(title):
+    """Senior postings routinely carry junior boilerplate (internship programs,
+    "0-1 years with Kubernetes"); that must not let them through."""
+    job = enriched_job(title, JUNIOR_FRIENDLY_DESCRIPTION)
 
-    assert job.title_description_conflict is True
-    assert is_recommendable_job(job) is True
+    assert is_recommendable_job(job) is False
 
 
 @pytest.mark.parametrize(
@@ -67,6 +76,7 @@ def test_senior_title_with_junior_friendly_description_is_still_recommended():
         "Software Engineer",
         "New Grad Software Engineer",
         "Software Engineer I",
+        "Software Engineer II",
         "Member of Technical Staff (AI Software Engineer, Agents)",
     ],
 )
@@ -77,6 +87,26 @@ def test_non_senior_titles_are_still_recommended(title):
 
 
 def test_member_of_technical_staff_is_not_treated_as_senior():
-    assert has_unrealistic_senior_title("Member of Technical Staff") is False
-    assert has_unrealistic_senior_title("Staff Software Engineer") is True
-    assert has_unrealistic_senior_title("Senior Member of Technical Staff") is True
+    assert has_senior_title("Member of Technical Staff") is False
+    assert has_senior_title("Staff Software Engineer") is True
+    assert has_senior_title("Senior Member of Technical Staff") is True
+
+
+def test_five_years_required_in_description_blocks_a_plain_title():
+    job = enriched_job(
+        "Software Engineer",
+        GENERIC_DESCRIPTION + "\nRequirements\n- 5+ years of professional software engineering experience",
+    )
+
+    assert is_recommendable_job(job) is False
+    assert "Requires 5+ years" in " ".join(get_rejection_reasons(job))
+
+
+def test_phd_titled_roles_are_not_recommended():
+    assert is_recommendable_job(enriched_job("PhD University Grad Machine Learning Engineer")) is False
+
+
+def test_non_engineering_titles_are_not_recommended():
+    job = enriched_job("User Experience Researcher, Platform")
+
+    assert "title is not an engineering or data role" in get_rejection_reasons(job)

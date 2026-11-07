@@ -35,9 +35,9 @@ That runs the whole pipeline locally and writes a report to `reports/daily_repor
 * Collects active roles from public ATS platforms including Greenhouse, Ashby, Lever, and Workable, plus verified public JSON endpoints for select large employers outside those platforms (Amazon, Netflix).
 * Normalizes job listings into a shared format.
 * Filters for software engineering, backend, full-stack, data, AI/ML, developer tools, infrastructure, healthtech, and fintech-related roles.
-* Scores roles using title fit, technical overlap, degree relevance, seniority signals, work-authorization wording, and profile-to-description similarity.
+* Scores every eligible role from 0–100 on level, role fit, skills overlap, semantic similarity to the candidate profile, and work-authorization wording.
 * Prioritizes new-grad roles, SWE I, and other early-career opportunities; excludes internships and roles targeting grad years outside the candidate's own.
-* Prevents senior, staff, principal, lead, manager, and director roles from receiving early-career bonuses.
+* Excludes senior-level roles outright: senior/staff/principal/lead/manager titles, numbered levels above II (III, IV, 4+, L4+), and postings that require more than three years of experience. A junior-sounding description never overrides a senior title.
 * Sends the top newly discovered opportunities in a daily email report, ranked best-fit first.
 * Generates a ranked TXT attachment for additional qualified opportunities below the top-ranked cutoff.
 * Tracks previously seen jobs to identify newly discovered opportunities for the email body.
@@ -57,26 +57,28 @@ The pool is split into:
 
 The daily email body lists the top newly discovered jobs, ranked best-fit first, not just the top-ranked roles overall. Roles below the top-ranked cutoff remain eligible for future runs — they are ranked again alongside newly discovered jobs rather than being treated as permanently delivered.
 
-## Ranking signals
+## Ranking
 
-CareerEngine scores every job in two stages.
+Ranking happens in two steps: hard eligibility gates first, then one match score.
 
-**Base score** — used for the initial sort and to decide which jobs qualify at all:
+**1. Eligibility gates** — a job that fails any of these is never ranked, and none can be traded off against a high score:
 
-* Software engineering and backend relevance
-* Python, Java, TypeScript, SQL, REST APIs, PostgreSQL, Docker, cloud systems, data pipelines, and ML/LLM overlap
-* Computer Science and Mathematics degree relevance
-* Internship and early-career signals
-* Seniority penalties and blockers
-* Work-authorization wording when present
+* Not an internship and not targeting an excluded grad year
+* No hard work-authorization restriction (citizenship, green card, clearance, export control)
+* Level gate: no senior-level title, no numbered level above II, no PhD-titled role, and no requirement of more than three years of experience. Years are read from the *required* part of the posting (ranges use their lower bound; "preferred" experience never counts against a role)
+* An engineering or data job title, based in the U.S. or U.S.-remote, and relevant to Computer Science or Mathematics
 
-**AI Fit** — computed only for jobs that already qualified, and shown on the dashboard as a match percentage:
+**2. Match score (0–100)** — a weighted average of five components, each normalized to 0–1:
 
-* Sentence-BERT semantic similarity between the candidate profile and the job description
-* Lexical wording overlap between the profile and the description
-* New-grad/internship eligibility, and experience-year or seniority-title conflicts
+| Component | Weight | What it measures |
+|---|---|---|
+| Level | 30% | Explicit new-grad / early-career / "I" roles score highest; unlabelled roles are neutral; "II", 2–3 required years, and senior-scope language score lower |
+| Role | 25% | How close the job title is to backend, full-stack, and software engineering, versus adjacent or specialized roles |
+| Skills | 20% | Of the technologies the posting asks for, how many the candidate knows (requirements and title count more than company boilerplate; related technologies earn partial credit) |
+| Semantic | 15% | Sentence-BERT similarity between the candidate profile and the role's responsibilities and requirements, chunked so nothing is lost to the model's input window |
+| Authorization | 10% | Sponsorship and work-authorization wording |
 
-AI Fit deliberately excludes CS/Math relevance — that signal is already scored once in the base score and used again to decide which jobs qualify, so re-adding it here would double-count it. AI Fit is converted into a bounded adjustment (+25 / +12 / 0 / −12) that's added back onto the base score, and the qualified pool is re-sorted by the combined result. This isn't a shadow calculation shown for reference — it genuinely changes the final ranking order on every run.
+Scores map to bands: **Excellent** (80+), **Strong** (70+), **Good** (60+), **Fair**. The same number is used for ordering, for the email, and for the dashboard. Postings that are the same role listed once per office are merged into one entry with all locations.
 
 ## The tech, and the numbers
 
@@ -92,7 +94,7 @@ As of the most recent run:
 | Sources reachable per run | **74 / 75** |
 | Job postings scanned per run | **~11,800** |
 | Qualified & ranked opportunities live | **234** |
-| Automated tests | **107**, all passing |
+| Automated tests | **205**, all passing |
 | Email delivery schedule | Daily, 1:00 PM Turkey time |
 
 ## Project structure
@@ -104,7 +106,7 @@ config/
 
 src/
   collectors/      Public ATS and custom-API collectors
-  ranking/         Fit scoring and semantic similarity
+  ranking/         Eligibility gates, match score, and semantic similarity
   reporting/       Email and attachment generation
   storage/         SQLite delivery and deduplication state
   compliance/      Source-access safeguards
@@ -131,15 +133,14 @@ See `LEGAL_AND_COMPLIANCE.md`, `TERMS_OF_USE.md`, and `robots_policy.md` for pro
 Implemented:
 
 * Public ATS job collection, plus custom collectors for select large employers (Amazon, Netflix)
-* Rule-based fit scoring with internship and off-target grad-year exclusions
-* Early-career ranking calibration
+* Hard eligibility gates (seniority, years required, internships, grad year, work authorization, location) followed by a single 0–100 match score
 * Daily HTML + plain-text email reporting
 * Ranked additional-opportunities attachment
 * Seen-job tracking and delivery auditing
-* Sentence-BERT semantic matching (AI Fit), live in ranking order
+* Sentence-BERT semantic matching as one component of the match score
 * GitHub Actions automation, scheduled daily
 * Supabase-backed tracking dashboard
-* 107 automated tests covering ranking, delivery, reports, and collectors
+* 205 automated tests covering ranking, delivery, reports, and collectors
 
 In progress:
 

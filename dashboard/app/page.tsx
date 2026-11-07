@@ -64,13 +64,11 @@ function bucketClass(bucket: Job["bucket"]) {
 }
 type FitStatus = "yes" | "no" | "maybe";
 
-function formatAiFit(job: Job) {
-  if (job.ai_profile_fit !== null && job.ai_profile_fit !== undefined) {
-    return `${job.ai_profile_fit.toFixed(1)}% Match`;
-  }
+function formatMatchScore(job: Job) {
+  const score = job.ai_profile_fit ?? job.final_score;
 
-  if (job.final_score !== null && job.final_score !== undefined) {
-    return `${job.final_score.toFixed(1)}`;
+  if (score !== null && score !== undefined) {
+    return `${Math.round(score)} / 100`;
   }
 
   return "—";
@@ -395,10 +393,10 @@ export default function Home() {
                   <div className="mt-4 grid gap-3 text-sm text-stone-600 sm:grid-cols-3">
                     <div className="rounded-xl bg-[#FAFAFB] px-5 py-4">
                       <span className="block text-xs font-medium uppercase tracking-wide text-stone-400">
-                        AI Fit
+                        Match
                       </span>
                       <p className="mt-2 font-mono text-[15px] font-medium text-stone-700">
-                        {formatAiFit(job)}
+                        {formatMatchScore(job)}
                       </p>
                     </div>
 

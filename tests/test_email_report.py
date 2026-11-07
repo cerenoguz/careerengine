@@ -27,7 +27,6 @@ def make_job(
         date_posted=None,
         source="test",
         eligibility_status="likely_compatible",
-        description_similarity=0.05,
         score=90.0,
         why_matched=["Strong CS/Math degree relevance (+15)", "Role match"],
         first_found_date=None,

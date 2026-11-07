@@ -49,3 +49,34 @@ def test_extract_description_combines_amazon_fields():
     assert "Build satellite network software." in description
     assert "3+ years of experience." in description
     assert "Experience with distributed systems." in description
+
+
+def test_extract_description_labels_basic_and_preferred_qualifications():
+    raw_job = {
+        "description": "Build things.",
+        "basic_qualifications": "- 3+ years of experience",
+        "preferred_qualifications": "- 5+ years of server-side experience",
+    }
+
+    lines = _extract_description(raw_job).splitlines()
+
+    assert "Basic Qualifications" in lines
+    assert "Preferred Qualifications" in lines
+    assert lines.index("Basic Qualifications") < lines.index("Preferred Qualifications")
+
+
+def test_amazon_preferred_years_do_not_count_as_required():
+    from src.ranking.level import assess_level
+    from src.ranking.text_clean import clean_description
+
+    description = clean_description(_extract_description({
+        "description": "Build things.",
+        "basic_qualifications": "- 3+ years of non-internship professional software development experience",
+        "preferred_qualifications": "- 5+ years of server-side development experience",
+    }))
+
+    result = assess_level("SDE II", description)
+
+    assert result.gate is False
+    assert result.years_required == 3
+    assert result.years_preferred == 5

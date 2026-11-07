@@ -148,10 +148,16 @@ def _extract_location(raw_job: dict[str, Any]) -> str:
 
 
 def _extract_description(raw_job: dict[str, Any]) -> str:
-    parts = [
-        raw_job.get("description"),
-        raw_job.get("basic_qualifications"),
-        raw_job.get("preferred_qualifications"),
+    # The qualification lists are labelled so downstream parsing can tell the
+    # minimum requirements apart from the preferred ones.
+    sections = [
+        (None, raw_job.get("description")),
+        ("Basic Qualifications", raw_job.get("basic_qualifications")),
+        ("Preferred Qualifications", raw_job.get("preferred_qualifications")),
     ]
 
-    return "\n\n".join(str(part) for part in parts if part)
+    return "\n\n".join(
+        f"{heading}\n{body}" if heading else str(body)
+        for heading, body in sections
+        if body
+    )

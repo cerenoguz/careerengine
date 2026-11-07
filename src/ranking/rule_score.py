@@ -1,5 +1,7 @@
 import re
 
+from src.ranking.level import has_senior_title
+
 
 # -----------------------------
 # Opportunity type patterns
@@ -27,45 +29,6 @@ NEW_GRAD_PATTERNS = [
     r"\bgraduate software engineer\b",
     r"\brotational program\b",
 ]
-
-SENIOR_TITLE_BLOCKING_PATTERNS = [
-    r"\bsenior\b",
-    r"\bstaff\b",
-    r"\bprincipal\b",
-    r"\blead\b",
-    r"\bmanager\b",
-    r"\bdirector\b",
-    r"\bdistinguished\b",
-    r"\barchitect\b",
-    r"\bvp\b",
-    r"\bhead of\b",
-]
-
-
-def has_senior_title_blocker(title: str) -> bool:
-    normalized_title = title.lower()
-    return any(
-        re.search(pattern, normalized_title)
-        for pattern in SENIOR_TITLE_BLOCKING_PATTERNS
-    )
-
-
-def has_unrealistic_senior_title(title: str) -> bool:
-    """
-    Title-level seniority that keeps a role out of a new-grad search.
-
-    "Member of Technical Staff" is a generic engineer title at many AI labs,
-    not a staff-level one, so it is not treated as senior here.
-    """
-    normalized_title = re.sub(
-        r"\bmember of technical staff\b",
-        "",
-        title,
-        flags=re.IGNORECASE,
-    )
-    return has_senior_title_blocker(normalized_title)
-
-
 
 # -----------------------------
 # Roles to remove entirely
@@ -185,108 +148,6 @@ LOW_CS_RELEVANCE_PATTERNS = [
 
 
 # -----------------------------
-# Scoring dictionaries
-# -----------------------------
-
-ROLE_KEYWORDS = {
-    "software engineering intern": 12,
-    "software engineer intern": 12,
-    "software engineer internship": 12,
-    "backend intern": 10,
-    "full stack intern": 10,
-    "full-stack intern": 10,
-    "data engineering intern": 10,
-    "machine learning intern": 10,
-    "ml intern": 10,
-    "ai intern": 10,
-    "new grad software engineer": 14,
-    "graduate software engineer": 12,
-    "software engineer": 10,
-    "software engineer i": 12,
-    "associate software engineer": 12,
-    "software developer": 10,
-    "backend engineer": 10,
-    "full stack engineer": 8,
-    "full-stack engineer": 8,
-    "data engineer": 8,
-    "machine learning engineer": 8,
-    "ml engineer": 8,
-    "ai engineer": 8,
-    "application developer": 7,
-    "automation engineer": 7,
-    "qa engineer": 6,
-    "sdet": 6,
-}
-
-CS_ADJACENT_ROLE_KEYWORDS = {
-    "technical support engineer": 6,
-    "developer support engineer": 6,
-    "technical escalations engineer": 6,
-    "escalations engineer": 5,
-    "solutions engineer": 5,
-    "application systems analyst": 5,
-    "business systems analyst": 5,
-    "systems analyst": 5,
-    "data analyst": 5,
-    "implementation engineer": 4,
-    "integration engineer": 4,
-    "cloud support engineer": 4,
-    "platform support engineer": 4,
-}
-
-TECH_KEYWORDS = {
-    "python": 5,
-    "java": 5,
-    "typescript": 4,
-    "javascript": 3,
-    "sql": 5,
-    "postgresql": 5,
-    "mysql": 4,
-    "rest api": 4,
-    "rest apis": 4,
-    "api": 3,
-    "backend": 5,
-    "database": 4,
-    "data pipeline": 4,
-    "machine learning": 4,
-    "distributed systems": 4,
-    "cloud": 3,
-    "docker": 3,
-    "kubernetes": 3,
-    "automation": 3,
-    "scripting": 3,
-}
-
-INDUSTRY_KEYWORDS = {
-    "healthcare": 4,
-    "developer tools": 4,
-    "infrastructure": 4,
-    "saas": 3,
-    "ai": 4,
-    "machine learning": 4,
-    "data platform": 4,
-}
-
-SENIORITY_PENALTY_KEYWORDS = {
-    "senior": -25,
-    "staff": -35,
-    "principal": -40,
-    "lead": -30,
-    "manager": -35,
-    "director": -45,
-    "distinguished": -50,
-    "architect": -30,
-    "vp": -60,
-    "head of": -60,
-    "5+ years": -35,
-    "6+ years": -40,
-    "7+ years": -45,
-    "8+ years": -50,
-    "10+ years": -60,
-}
-
-
-# -----------------------------
 # Matching helpers
 # -----------------------------
 
@@ -326,11 +187,10 @@ def is_new_grad(title: str, description: str) -> bool:
     """
     Classify new-grad / entry-level status from the role title only.
 
-    Senior-title blockers prevent titles such as Principal Software Engineer I
-    from being incorrectly classified as new-grad just because they contain
-    Software Engineer I.
+    A senior title prevents titles such as Principal Software Engineer I from
+    being classified as new-grad just because they contain Software Engineer I.
     """
-    if has_senior_title_blocker(title):
+    if has_senior_title(title):
         return False
 
     return matches_any_pattern(title, NEW_GRAD_PATTERNS)
@@ -339,85 +199,6 @@ def is_new_grad(title: str, description: str) -> bool:
 def is_excluded_role(title: str, description: str) -> bool:
     text = f"{title} {description}"
     return matches_any_pattern(text, EXCLUDED_ROLE_PATTERNS)
-
-
-def is_target_role(title: str, description: str) -> bool:
-    text = f"{title} {description}"
-
-    return (
-        matches_any_pattern(text, CS_STRONG_ROLE_PATTERNS)
-        or matches_any_pattern(text, CS_ADJACENT_ROLE_PATTERNS)
-    )
-
-UNREALISTIC_SENIORITY_PATTERNS = [
-    r"\bsenior\b",
-    r"\bstaff\b",
-    r"\bprincipal\b",
-    r"\blead\b",
-    r"\bmanager\b",
-    r"\bdirector\b",
-    r"\bdistinguished\b",
-    r"\barchitect\b",
-    r"\bvp\b",
-    r"\bhead of\b",
-    r"\b5\+ years\b",
-    r"\b6\+ years\b",
-    r"\b7\+ years\b",
-    r"\b8\+ years\b",
-    r"\b10\+ years\b",
-]
-
-
-MID_LEVEL_TITLE_PATTERNS = [
-    r"\bsoftware engineer\s+ii\b",
-    r"\bbackend engineer\s+ii\b",
-    r"\bfull stack engineer\s+ii\b",
-    r"\bfull-stack engineer\s+ii\b",
-    r"\bdata engineer\s+ii\b",
-    r"\bengineer\s+ii\b",
-    r"\bsoftware engineer\s*\(l2\)(?=\W|$)",
-    r"\bengineer\s*\(l2\)(?=\W|$)",
-    r"\bsoftware engineer\s+l2(?=\W|$)",
-    r"\bengineer\s+l2(?=\W|$)",
-    r"\blevel\s*2\b",
-]
-
-
-def has_mid_level_title(title: str) -> bool:
-    """
-    Return True for title-level signals that usually indicate a role above
-    pure new-grad / entry-level, but not senior enough to exclude entirely.
-    """
-    return matches_any_pattern(title, MID_LEVEL_TITLE_PATTERNS)
-
-
-def has_unrealistic_seniority(title: str, description: str) -> bool:
-    """
-    Return True for roles that are CS-related but unrealistic for a new-grad /
-    early-career candidate.
-
-    We still allow internships and new-grad roles even if the description
-    mentions mentorship, managers, or senior engineers.
-    """
-    if is_internship(title, description) or is_new_grad(title, description):
-        return False
-
-    title_match = matches_any_pattern(title, UNREALISTIC_SENIORITY_PATTERNS)
-
-    years_required_patterns = [
-        r"\b5\+ years\b",
-        r"\b6\+ years\b",
-        r"\b7\+ years\b",
-        r"\b8\+ years\b",
-        r"\b10\+ years\b",
-        r"\bminimum of 5 years\b",
-        r"\bat least 5 years\b",
-        r"\b5 years of experience\b",
-    ]
-
-    description_years_match = matches_any_pattern(description, years_required_patterns)
-
-    return title_match or description_years_match
 
 
 def classify_cs_relevance(title: str, description: str) -> tuple[str, list[str]]:
@@ -469,127 +250,3 @@ def classify_cs_relevance(title: str, description: str) -> tuple[str, list[str]]
     return "unclear_cs_relevance", ["CS/Math degree relationship is unclear"]
 
 
-# -----------------------------
-# Scoring
-# -----------------------------
-
-EARLY_CAREER_RANKING_PRIORITY_BONUS = 10
-MID_LEVEL_TITLE_PENALTY = 12
-
-
-def has_explicit_early_career_title(title: str, description: str) -> bool:
-    """
-    Return True only for title-level internship or new-grad signals that are
-    appropriate for the user's early-career search.
-
-    Senior-title blockers prevent false positives such as
-    Principal Software Engineer I.
-    """
-    if has_senior_title_blocker(title):
-        return False
-
-    return is_internship(title, description) or is_new_grad(title, description)
-
-def score_job(title: str, description: str, eligibility_status: str) -> tuple[float, list[str]]:
-    """
-    Score a job using both title and description.
-
-    The score is not the final legal/OPT decision. It is a ranking signal.
-    The CS relevance classifier should also be used before recommending a job.
-    """
-    text = f"{title} {description}"
-
-    score = 0.0
-    reasons: list[str] = []
-
-    # Title-only, matching is_recommendable_job() and classify_cs_relevance().
-    if is_excluded_role(title, ""):
-        return -999.0, ["Excluded role category"]
-
-    cs_relevance_status, cs_relevance_reasons = classify_cs_relevance(title, description)
-
-    if cs_relevance_status == "strong_cs_relevance":
-        score += 15
-        reasons.append("Strong CS/Math degree relevance (+15)")
-    elif cs_relevance_status == "cs_adjacent":
-        score += 8
-        reasons.append("CS-adjacent role with technical duties (+8)")
-    elif cs_relevance_status == "possibly_cs_adjacent":
-        score += 3
-        reasons.append("Possibly CS-adjacent role; review duties carefully (+3)")
-    elif cs_relevance_status == "unclear_but_possible":
-        score += 2
-        reasons.append("Some CS-related duties found in description (+2)")
-    elif cs_relevance_status == "low_cs_relevance":
-        score -= 40
-        reasons.append("Weak CS/Math degree relevance (-40)")
-
-    for reason in cs_relevance_reasons:
-        reasons.append(reason)
-
-    for keyword, points in ROLE_KEYWORDS.items():
-        if keyword == "software engineer i":
-            if contains_phrase(title, keyword) and not has_senior_title_blocker(title):
-                score += points
-                reasons.append(f"Role match: {keyword} (+{points})")
-            continue
-
-        if contains_phrase(text, keyword):
-            score += points
-            reasons.append(f"Role match: {keyword} (+{points})")
-
-    for keyword, points in CS_ADJACENT_ROLE_KEYWORDS.items():
-        if contains_phrase(text, keyword):
-            score += points
-            reasons.append(f"CS-adjacent role match: {keyword} (+{points})")
-
-    for keyword, points in TECH_KEYWORDS.items():
-        if contains_phrase(text, keyword):
-            score += points
-            reasons.append(f"Tech/duty match: {keyword} (+{points})")
-
-    for keyword, points in INDUSTRY_KEYWORDS.items():
-        if contains_phrase(text, keyword):
-            score += points
-            reasons.append(f"Industry/context match: {keyword} (+{points})")
-
-    if is_internship(title, description):
-        score += 10
-        reasons.append("Internship opportunity (+10)")
-
-    if is_new_grad(title, description):
-        score += 12
-        reasons.append("New grad / early-career opportunity (+12)")
-
-    if has_explicit_early_career_title(title, description):
-        score += EARLY_CAREER_RANKING_PRIORITY_BONUS
-        reasons.append(
-            "Early-career ranking priority "
-            f"(+{EARLY_CAREER_RANKING_PRIORITY_BONUS})"
-        )
-
-    if (
-        has_mid_level_title(title)
-        and not is_internship(title, description)
-        and not is_new_grad(title, description)
-    ):
-        score -= MID_LEVEL_TITLE_PENALTY
-        reasons.append(
-            "Mid-level title signal "
-            f"(-{MID_LEVEL_TITLE_PENALTY})"
-        )
-
-    for keyword, points in SENIORITY_PENALTY_KEYWORDS.items():
-        if contains_phrase(text, keyword):
-            score += points
-            reasons.append(f"Seniority penalty: {keyword} ({points})")
-
-    if eligibility_status == "likely_compatible":
-        score += 15
-        reasons.append("Positive work authorization signal (+15)")
-
-    if eligibility_status == "likely_incompatible":
-        score -= 100
-        reasons.append("Negative work authorization signal (-100)")
-
-    return score, reasons

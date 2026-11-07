@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -17,7 +17,6 @@ class Job:
     is_internship: bool = False
     is_new_grad: bool = False
     eligibility_status: str = "unclear"
-    description_similarity: float = 0.0
     semantic_similarity: float = 0.0
     score: float = 0.0
     why_matched: list[str] = field(default_factory=list)
@@ -36,13 +35,20 @@ class Job:
     export_control_restriction: str = "no"
     sponsorship_language: str = "unclear"
     experience_fit: str = "unclear"
-    title_description_conflict: bool = False
     evaluation_reason: str = ""
     evaluation_evidence: list[str] = field(default_factory=list)
     evaluation_confidence: float = 0.0
     profile_fit_score: float = 0.0
     profile_fit_band: str = "unavailable"
     profile_fit_reasons: list[str] = field(default_factory=list)
+
+    # Level assessment and match breakdown (see src/ranking/level.py and
+    # src/ranking/match_score.py).
+    level: str = "unknown"
+    level_gate_reason: str = ""
+    level_assessment: Any = None
+    role_family: str = "other"
+    match_components: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass

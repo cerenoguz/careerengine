@@ -11,6 +11,7 @@ from src.dashboard.buckets import classify_dashboard_bucket
 
 
 DASHBOARD_TABLE = "careerengine_jobs"
+MIN_JOBS_TO_DEACTIVATE_STALE = 10
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -41,34 +42,58 @@ def _as_float(value: Any) -> float | None:
         return None
 
 
-def _payload_for_job(job: Any, rank: int, run_date: date) -> dict[str, Any]:
-    title = str(_get(job, "title", ""))
-    description = str(_get(job, "description", "") or _get(job, "full_description", ""))
+def _first_float(job: Any, *names: str) -> float | None:
+    """First field that holds a number; a legitimate 0.0 is kept, not skipped."""
+    for name in names:
+        value = _as_float(_get(job, name, None))
+        if value is not None:
+            return value
+    return None
 
-    ai_profile_fit = _as_float(
-        _get(job, "ai_profile_fit", None)
-        or _get(job, "profile_fit_score", None)
-        or _get(job, "semantic_profile_fit", None)
-    )
 
-    work_auth_review = str(
+def _work_auth_review(job: Any) -> str:
+    explicit = str(
         _get(job, "work_authorization_review", "")
         or _get(job, "work_auth_review", "")
     )
+    if explicit:
+        return explicit
 
-    opportunity_type = str(_get(job, "opportunity_type", ""))
-    experience_fit = str(_get(job, "experience_fit", ""))
-    reason = str(_get(job, "reason", "") or _get(job, "selection_reason", ""))
+    if _get(job, "sponsorship_language", "") == "unavailable":
+        return "Sponsorship unavailable"
 
-    bucket = classify_dashboard_bucket(
-        title=title,
-        description=description,
-        ai_profile_fit=ai_profile_fit,
-        work_auth_review=work_auth_review,
-        opportunity_type=opportunity_type,
-        experience_fit=experience_fit,
-        reason=reason,
+    if _get(job, "eligibility_status", "") == "likely_compatible":
+        return "Likely compatible"
+
+    return "Unclear"
+
+
+def _opportunity_type(job: Any) -> str:
+    explicit = str(_get(job, "opportunity_type", ""))
+    if explicit:
+        return explicit
+
+    if _get(job, "is_new_grad", False):
+        return "New Grad"
+
+    if _get(job, "level", "") == "entry":
+        return "Early Career"
+
+    return ""
+
+
+def _payload_for_job(job: Any, rank: int, run_date: date) -> dict[str, Any]:
+    title = str(_get(job, "title", ""))
+
+    # One number: the unified match score. `final_score` and `ai_profile_fit`
+    # are both kept populated because existing rows, and the dashboard's sort,
+    # use them.
+    match_score = _first_float(
+        job, "score", "ai_profile_fit", "profile_fit_score", "careerengine_score"
     )
+
+    reasons = _get(job, "why_matched", None) or _get(job, "profile_fit_reasons", None) or []
+    reason = str(_get(job, "reason", "") or _get(job, "selection_reason", "") or " · ".join(reasons))
 
     return {
         "job_id": _stable_job_id(job),
@@ -85,17 +110,30 @@ def _payload_for_job(job: Any, rank: int, run_date: date) -> dict[str, Any]:
         "last_seen_date": str(run_date),
         "is_active": True,
         "current_rank": rank,
-        "bucket": bucket,
-        "final_score": _as_float(
-            _get(job, "score", None)
-            or _get(job, "careerengine_score", None)
-        ),
-        "ai_profile_fit": ai_profile_fit,
+        "bucket": classify_dashboard_bucket(match_score),
+        "final_score": match_score,
+        "ai_profile_fit": match_score,
         "profile_fit_band": str(_get(job, "profile_fit_band", "")),
-        "work_auth_review": work_auth_review,
-        "opportunity_type": opportunity_type,
+        "work_auth_review": _work_auth_review(job),
+        "opportunity_type": _opportunity_type(job),
         "reason": reason,
     }
+
+
+def _request(method: str, url: str, service_key: str, body: Any, prefer: str) -> None:
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        method=method,
+        headers={
+            "apikey": service_key,
+            "Content-Type": "application/json",
+            "Prefer": prefer,
+        },
+    )
+
+    with urllib.request.urlopen(request, timeout=30) as response:
+        response.read()
 
 
 def sync_jobs_to_supabase(ranked_jobs: Iterable[Any], run_date: date | None = None) -> None:
@@ -116,20 +154,35 @@ def sync_jobs_to_supabase(ranked_jobs: Iterable[Any], run_date: date | None = No
         print("Dashboard sync skipped: no ranked jobs.")
         return
 
-    endpoint = f"{supabase_url}/rest/v1/{DASHBOARD_TABLE}?on_conflict=job_id"
+    table_url = f"{supabase_url}/rest/v1/{DASHBOARD_TABLE}"
 
-    request = urllib.request.Request(
-        endpoint,
-        data=json.dumps(payloads).encode("utf-8"),
-        method="POST",
-        headers={
-            "apikey": service_key,
-            "Content-Type": "application/json",
-            "Prefer": "resolution=merge-duplicates",
-        },
+    _request(
+        "POST",
+        f"{table_url}?on_conflict=job_id",
+        service_key,
+        payloads,
+        "resolution=merge-duplicates",
     )
 
-    with urllib.request.urlopen(request, timeout=30) as response:
-        response.read()
-
     print(f"Dashboard sync complete: {len(payloads)} jobs synced to Supabase.")
+
+    # Jobs that were not in today's ranking (filled, removed, or no longer
+    # eligible) must stop showing as active; otherwise old rows, scored on an
+    # older scale, mix with today's. The guard keeps one bad collection run
+    # from emptying the board; deactivated rows come back on the next sync
+    # that includes them.
+    if len(payloads) < MIN_JOBS_TO_DEACTIVATE_STALE:
+        print(
+            "Stale-row cleanup skipped: only "
+            f"{len(payloads)} jobs ranked (minimum {MIN_JOBS_TO_DEACTIVATE_STALE})."
+        )
+        return
+
+    _request(
+        "PATCH",
+        f"{table_url}?is_active=eq.true&last_seen_date=lt.{run_date.isoformat()}",
+        service_key,
+        {"is_active": False},
+        "return=minimal",
+    )
+    print("Dashboard stale-row cleanup complete.")

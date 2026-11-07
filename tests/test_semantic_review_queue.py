@@ -23,7 +23,6 @@ def make_job(
         date_posted=None,
         source="example",
         score=score,
-        description_similarity=0.080,
         semantic_similarity=semantic_similarity,
         is_internship=is_internship,
         is_new_grad=is_new_grad,
