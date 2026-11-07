@@ -82,7 +82,7 @@ def _opportunity_type(job: Any) -> str:
     return ""
 
 
-def _payload_for_job(job: Any, rank: int, run_date: date) -> dict[str, Any]:
+def _payload_for_job(job: Any, rank: int, run_date: date | str) -> dict[str, Any]:
     title = str(_get(job, "title", ""))
 
     # One number: the unified match score. `final_score` and `ai_profile_fit`
@@ -136,7 +136,7 @@ def _request(method: str, url: str, service_key: str, body: Any, prefer: str) ->
         response.read()
 
 
-def sync_jobs_to_supabase(ranked_jobs: Iterable[Any], run_date: date | None = None) -> None:
+def sync_jobs_to_supabase(ranked_jobs: Iterable[Any], run_date: date | str | None = None) -> None:
     if os.getenv("CAREERENGINE_DASHBOARD_ENABLED", "").lower() != "true":
         print("Dashboard sync skipped: CAREERENGINE_DASHBOARD_ENABLED is not true.")
         return
@@ -180,7 +180,7 @@ def sync_jobs_to_supabase(ranked_jobs: Iterable[Any], run_date: date | None = No
 
     _request(
         "PATCH",
-        f"{table_url}?is_active=eq.true&last_seen_date=lt.{run_date.isoformat()}",
+        f"{table_url}?is_active=eq.true&last_seen_date=lt.{run_date}",
         service_key,
         {"is_active": False},
         "return=minimal",

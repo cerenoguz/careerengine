@@ -87,3 +87,22 @@ def test_stale_cleanup_is_skipped_for_a_suspiciously_small_run(monkeypatch):
 
 def test_payload_is_json_serialisable():
     json.dumps(supabase_sync._payload_for_job(make_job(), 1, RUN_DATE))
+
+
+def test_sync_accepts_the_run_date_as_a_string(monkeypatch):
+    """main() passes the New York delivery date as an ISO string, not a date."""
+    calls = []
+    monkeypatch.setenv("CAREERENGINE_DASHBOARD_ENABLED", "true")
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "key")
+    monkeypatch.setattr(supabase_sync, "_request", lambda method, url, key, body, prefer: calls.append((method, url)))
+    jobs = []
+    for index in range(12):
+        job = make_job(70.0 + index)
+        job.id = f"job-{index}"
+        jobs.append(job)
+
+    supabase_sync.sync_jobs_to_supabase(jobs, run_date="2026-11-06")
+
+    assert [call[0] for call in calls] == ["POST", "PATCH"]
+    assert "last_seen_date=lt.2026-11-06" in calls[1][1]
